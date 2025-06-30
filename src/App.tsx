@@ -1,34 +1,32 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
-
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    // Главный контейнер, который занимает весь экран и использует flexbox
+    <div className="bg-gray-800 text-white h-screen flex flex-row">
+
+      {/* Левая колонка (Чат) */}
+      <div className="w-1/2 p-4 border-r border-gray-600 flex flex-col">
+        <h2 className="text-xl font-bold mb-4">Диалог с AI</h2>
+        {/* Здесь будет сам чат */}
+        <div className="flex-grow bg-gray-700 rounded-lg p-2">
+          {/* Сообщения чата будут тут */}
+        </div>
+        <input 
+          type="text" 
+          placeholder="Задайте ваш вопрос..."
+          className="mt-4 p-2 rounded-lg bg-gray-900 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
+
+      {/* Правая колонка (Артефакт проектирования) */}
+      <div className="w-1/2 p-4 flex flex-col">
+        <h2 className="text-xl font-bold mb-4">Текущая архитектура</h2>
+        {/* Здесь будет визуализация */}
+        <div className="flex-grow bg-gray-700 rounded-lg p-2">
+          {/* Схема Mermaid или React Flow будет тут */}
+        </div>
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+
+    </div>
   )
 }
 
