@@ -4,7 +4,8 @@ import { ProjectListPanel } from './components/layout/ProjectListPanel';
 import { ChatPanel } from './components/chat/ChatPanel';
 import { ArchitecturePanel } from './components/architecture/ArchitecturePanel';
 import type { Message } from './types';
-import { geminiModel } from './services/gemini'; // <-- 1. МЕНЯЕМ ИМПОРТ
+import { geminiModel } from './services/gemini';
+import { type Node, type Edge } from 'reactflow';
 
 function App() {
   const [isPanelVisible, setIsPanelVisible] = useState(true);
@@ -13,72 +14,68 @@ function App() {
   ]);
   const [isLoading, setIsLoading] = useState(false);
 
+  const [nodes, setNodes] = useState<Node[]>([
+    { id: '1', type: 'input', data: { label: 'Начните проектирование...' }, position: { x: 250, y: 5 } }
+  ]);
+  const [edges, setEdges] = useState<Edge[]>([]);
+  
   const chatHistory = [
     { id: 1, name: "Проект CRM-системы" },
     { id: 2, name: "Архитектура блога" },
   ];
 
-  // 2. ПЕРЕПИСЫВАЕМ ФУНКЦИЮ ПОЛНОСТЬЮ
   const handleSendMessage = async (text: string) => {
-    const userMessage: Message = {
-      id: Date.now(),
-      text,
-      sender: 'user',
-    };
-
-    // Создаем новый массив сообщений для обновления UI
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
+    const userMessage: Message = { id: Date.now(), text, sender: 'user' };
+    setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
 
     try {
-      // 1. Фильтруем историю для API: убираем самое первое системное сообщение
       const historyForAPI = messages
-        .filter(msg => msg.id !== 1) // Убираем сообщение с id: 1
+        .filter(msg => msg.id !== 1)
         .map(msg => ({
-          role: msg.sender === 'user' ? 'user' : 'model',
+          role: msg.sender === 'user' ? 'user' : 'model' as 'user' | 'model',
           parts: [{ text: msg.text }],
         }));
       
       const chat = geminiModel.startChat({
         history: historyForAPI,
-        generationConfig: {
-          maxOutputTokens: 2000,
-        },
+        generationConfig: { maxOutputTokens: 8192 },
       });
 
-      // 2. Создаем сообщение для отправки. Если это первый запрос пользователя, добавляем системный промпт
+      const systemInstruction = `СИСТЕМНАЯ ИНСТРУКЦИЯ: ... (весь твой длинный промпт) ... ТЕКУЩАЯ АРХИТЕКТУРА: ${JSON.stringify({ nodes, edges }, null, 2)} ... НАЧАЛО ДИАЛОГА.`;
+      
       let messageToSend = text;
-      // Проверяем, было ли в чате до этого сообщение от пользователя
       const hasUserMessagedBefore = messages.some(msg => msg.sender === 'user');
       
       if (!hasUserMessagedBefore) {
-        // Это первое сообщение от пользователя. Добавляем "скрытую" инструкцию.
-        messageToSend = `СИСТЕМНАЯ ИНСТРУКЦИЯ: Ты — опытный AI-ассистент и ментор по проектированию IT-архитектуры. Твоя задача — вести диалог, задавать уточняющие вопросы и помогать пользователю проектировать систему. Отвечай кратко и по делу. НАЧАЛО ДИАЛОГА.
-        Пользователь: ${text}`;
+        messageToSend = `${systemInstruction}\nПользователь: ${text}`;
+      } else {
+        // Для последующих сообщений тоже добавляем контекст текущей архитектуры
+        messageToSend = `ТЕКУЩАЯ АРХИТЕКТУРА: ${JSON.stringify({ nodes, edges }, null, 2)}\nПользователь: ${text}`;
       }
 
-      // Отправляем сообщение (возможно, с инструкцией)
       const result = await chat.sendMessage(messageToSend);
-      const response = result.response;
-      const aiResponseText = response.text();
+      const aiResponseText = result.response.text();
 
-      const aiMessage: Message = {
-        id: Date.now() + 1,
-        text: aiResponseText,
-        sender: 'ai',
-      };
-      // Обновляем UI новым сообщением от AI
-      setMessages(prevMessages => [...prevMessages, aiMessage]);
+      const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
+      const match = aiResponseText.match(jsonRegex);
+
+      if (match && match[1]) {
+        try {
+          const parsedJson = JSON.parse(match[1]);
+          if (parsedJson.nodes) setNodes(parsedJson.nodes);
+          if (parsedJson.edges) setEdges(parsedJson.edges);
+        } catch (e) { console.error("Ошибка парсинга JSON от AI:", e); }
+      }
+      
+      const chatResponse = aiResponseText.replace(jsonRegex, '').trim();
+      const aiMessage: Message = { id: Date.now() + 1, text: chatResponse || "Архитектура обновлена. Что дальше?", sender: 'ai' };
+      setMessages(prev => [...prev, aiMessage]);
 
     } catch (error) {
       console.error("Ошибка при вызове Gemini API:", error);
-      const errorMessage: Message = {
-        id: Date.now() + 1,
-        text: "К сожалению, произошла ошибка при обращении к Google AI. Пожалуйста, проверьте ваш API ключ или попробуйте еще раз.",
-        sender: 'ai',
-      };
-      setMessages(prevMessages => [...prevMessages, errorMessage]);
+      const errorMessage: Message = { id: Date.now() + 1, text: "К сожалению, произошла ошибка.", sender: 'ai' };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -98,7 +95,12 @@ function App() {
           onTogglePanel={() => setIsPanelVisible(!isPanelVisible)}
           isLoading={isLoading}
         />
-        <ArchitecturePanel />
+        <div className={`transition-all duration-300 ${isPanelVisible ? 'w-1/2' : 'w-2/5'}`}>
+          <ArchitecturePanel 
+            initialNodes={nodes} 
+            initialEdges={edges}
+          />
+        </div>
       </main>
     </div>
   )

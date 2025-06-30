@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { PanelLeftClose, PanelLeftOpen, Send } from 'lucide-react';
+import TextareaAutosize from 'react-textarea-autosize';
 import type { Message } from '../../types';
+import { ChatMessage } from './ChatMessage';
 
-// Определяем пропсы для этого компонента
 interface ChatPanelProps {
   messages: Message[];
   onSendMessage: (text: string) => void;
@@ -17,22 +18,25 @@ export const ChatPanel = ({ messages, onSendMessage, isPanelVisible, onTogglePan
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading]); // Добавляем isLoading в зависимости, чтобы скроллить и при появлении индикатора
+  }, [messages, isLoading]);
 
   const handleSendMessageClick = () => {
-    if (inputValue.trim() === '') return;
+    if (inputValue.trim() === '' || isLoading) return;
     onSendMessage(inputValue);
     setInputValue('');
   };
 
-  const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
+  const handleKeyPress = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
       handleSendMessageClick();
     }
   };
 
   return (
-    <div className="w-1/2 p-4 border-r border-gray-700 flex flex-col">
+    <div className={`transition-all duration-300 p-4 border-r border-gray-700 flex flex-col ${
+      isPanelVisible ? 'w-1/2' : 'w-3/5'
+    }`}>
       <div className="flex items-center gap-x-2 mb-4">
         <button
           onClick={onTogglePanel}
@@ -46,14 +50,12 @@ export const ChatPanel = ({ messages, onSendMessage, isPanelVisible, onTogglePan
 
       <div className="flex-grow bg-gray-800 rounded-lg p-4 space-y-4 overflow-y-auto">
         {messages.map(message => (
-          <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-xs lg:max-w-md p-3 rounded-lg break-words ${message.sender === 'user' ? 'bg-blue-600' : 'bg-gray-600'}`}>
-              <p className="text-sm">{message.text}</p>
-            </div>
-          </div>
+          <ChatMessage 
+            key={message.id} 
+            message={message} 
+            isPanelVisible={isPanelVisible} // Передаем пропс сюда
+          />
         ))}
-
-        {/* Показываем индикатор, если идет загрузка */}
         {isLoading && (
           <div className="flex justify-start">
             <div className="bg-gray-600 p-3 rounded-lg flex items-center gap-x-2">
@@ -63,24 +65,25 @@ export const ChatPanel = ({ messages, onSendMessage, isPanelVisible, onTogglePan
             </div>
           </div>
         )}
-        
         <div ref={chatEndRef} />
       </div>
 
-      <div className="mt-4 relative flex items-center">
-        <input
-          type="text"
-          placeholder={isLoading ? "AI думает..." : "Задайте ваш вопрос..."}
-          className="w-full p-3 pr-12 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      <div className="mt-4 relative flex items-start">
+        <TextareaAutosize
+          placeholder={isLoading ? "AI думает..." : "Задайте ваш вопрос... (Ctrl+Enter для отправки)"}
+          className="w-full p-3 pr-12 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          onKeyPress={handleKeyPress}
-          disabled={isLoading} // Блокируем ввод, пока AI отвечает
+          onKeyDown={handleKeyPress}
+          disabled={isLoading}
+          minRows={1}
+          maxRows={6}
         />
         <button
           onClick={handleSendMessageClick}
-          className="absolute right-2 p-2 rounded-lg text-gray-400 hover:bg-gray-600 hover:text-white transition-colors"
-          disabled={isLoading} // Блокируем кнопку
+          className="absolute right-2 bottom-2 p-2 rounded-lg text-gray-400 hover:bg-gray-600 hover:text-white transition-colors"
+          disabled={isLoading}
+          title="Отправить (Ctrl+Enter)"
         >
           <Send size={20} />
         </button>
