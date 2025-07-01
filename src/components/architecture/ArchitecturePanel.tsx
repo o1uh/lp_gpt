@@ -1,14 +1,17 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import ReactFlow, { 
   Background, 
   Controls, 
   MiniMap, 
   useNodesState,
   useEdgesState,
+  type Node, 
+  type Edge, 
+  type OnNodesChange, 
+  type OnEdgesChange 
 } from 'reactflow';
-// Исправленный импорт: импортируем типы отдельно
-import { type Node, type Edge, type OnNodesChange, type OnEdgesChange } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { ArchitectureNode } from './ArchitectureNode'; // 1. Импортируем наш кастомный узел
 
 interface ArchitecturePanelProps {
   initialNodes: Node[]; 
@@ -19,7 +22,9 @@ export const ArchitecturePanel = ({ initialNodes, initialEdges }: ArchitecturePa
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  // Синхронизируем состояние, когда AI присылает новую архитектуру
+  // 2. Создаем объект с типами узлов, которые мы будем использовать
+  const nodeTypes = useMemo(() => ({ architectureNode: ArchitectureNode }), []);
+
   useEffect(() => {
     setNodes(initialNodes);
     setEdges(initialEdges);
@@ -32,8 +37,9 @@ export const ArchitecturePanel = ({ initialNodes, initialEdges }: ArchitecturePa
         <ReactFlow
           nodes={nodes}
           edges={edges}
-          onNodesChange={onNodesChange} // Приведение типов `as` больше не нужно
-          onEdgesChange={onEdgesChange} // Приведение типов `as` больше не нужно
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          nodeTypes={nodeTypes} // 3. Передаем наши кастомные типы в ReactFlow
           fitView
         >
           <Background />
