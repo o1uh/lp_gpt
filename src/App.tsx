@@ -71,9 +71,13 @@ function App() {
       4. Если узел ИМЕЕТ описание (поле implementation), задай ему БОЛЬШУЮ начальную высоту, например, style: { width: 220, height: 150 }, чтобы текст поместился.
       5. Связи (edges) могут иметь метку (label).
       6. Если в текущей архитектуре есть узел с id 'start-node', УДАЛИ его.
+      7. У каждого узла есть 4 точки для связей (ручки) с id: "top", "bottom", "left", "right".
+      8. Когда создаешь или изменяешь связь, используй свойства "sourceHandle" и "targetHandle", чтобы указать, из какой ручки узла-источника в какую ручку узла-назначения идет связь. Это позволяет управлять расположением связей.
       
-      В конце ответа верни JSON в тегах \`\`\`json ... \`\`\`.
-      Формат узла: { "id": "string", "type": "architectureNode", "data": { "label": "Заголовок", "implementation": "Описание в формате Markdown..." }, "position": { "x": number, "y": number }, "style": { "width": number, "height": number } }
+      В конце ответа верни JSON в тегах \`\`\`json ... \`\`\` с ключами "nodes" и "edges".
+      
+      Формат Узла: { "id": "string", "type": "architectureNode", "data": { "label": "Заголовок", "implementation": "Описание..." }, "position": { "x": number, "y": number }, "style": { "width": number, "height": number } }
+      Формат Связи: { "id": "e1-2", "source": "id_узла_1", "target": "id_узла_2", "label": "Описание связи", "sourceHandle": "right", "targetHandle": "left" }
       
       НАЧАЛО ДИАЛОГА.`;
       
