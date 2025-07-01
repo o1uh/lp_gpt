@@ -1,18 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
 import { PanelLeftClose, PanelLeftOpen, Send } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
-import type { Message } from '../../types';
 import { ChatMessage } from './ChatMessage';
+import { useAppContext } from '../../context/AppContext'; // 1. Импортируем наш хук
 
+// 2. Упрощаем пропсы. Теперь нам нужны только isPanelVisible и onTogglePanel
 interface ChatPanelProps {
-  messages: Message[];
-  onSendMessage: (text: string) => void;
   isPanelVisible: boolean;
   onTogglePanel: () => void;
-  isLoading: boolean;
 }
 
-export const ChatPanel = ({ messages, onSendMessage, isPanelVisible, onTogglePanel, isLoading }: ChatPanelProps) => {
+export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => {
+  // 3. Получаем все нужные данные и функции прямо из контекста
+  const { messages, isLoading, sendMessage } = useAppContext();
+  
   const [inputValue, setInputValue] = useState('');
   const chatEndRef = useRef<null | HTMLDivElement>(null);
 
@@ -22,7 +23,7 @@ export const ChatPanel = ({ messages, onSendMessage, isPanelVisible, onTogglePan
 
   const handleSendMessageClick = () => {
     if (inputValue.trim() === '' || isLoading) return;
-    onSendMessage(inputValue);
+    sendMessage(inputValue); // Вызываем функцию из контекста
     setInputValue('');
   };
 
@@ -53,7 +54,7 @@ export const ChatPanel = ({ messages, onSendMessage, isPanelVisible, onTogglePan
           <ChatMessage 
             key={message.id} 
             message={message} 
-            isPanelVisible={isPanelVisible} // Передаем пропс сюда
+            isPanelVisible={isPanelVisible}
           />
         ))}
         {isLoading && (

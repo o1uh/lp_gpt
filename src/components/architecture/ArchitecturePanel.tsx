@@ -1,26 +1,17 @@
-import { useMemo } from 'react'; // useMemo нужен для оптимизации nodeTypes
+import { useMemo } from 'react';
 import ReactFlow, { 
   Background, 
   Controls, 
   MiniMap, 
 } from 'reactflow';
-// Импортируем только те типы, которые нужны для пропсов
-import { type Node, type Edge, type OnNodesChange, type OnEdgesChange, type Connection } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { ArchitectureNode } from './ArchitectureNode';
+import { useAppContext } from '../../context/AppContext'; // 1. Импортируем хук
 
-// Интерфейс пропсов остается таким же
-interface ArchitecturePanelProps {
-  nodes: Node[]; 
-  edges: Edge[];
-  onNodesChange: OnNodesChange; 
-  onEdgesChange: OnEdgesChange;
-  onConnect: (params: Connection | Edge) => void;
-}
+export const ArchitecturePanel = () => {
+  // 2. Получаем все нужные данные и функции прямо из контекста
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect } = useAppContext();
 
-export const ArchitecturePanel = ({ nodes, edges, onNodesChange, onEdgesChange, onConnect }: ArchitecturePanelProps) => {
-
-  // Оборачиваем nodeTypes в useMemo, чтобы избежать ненужных перерисовок
   const nodeTypes = useMemo(() => ({ architectureNode: ArchitectureNode }), []);
 
   return (

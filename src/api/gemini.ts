@@ -7,7 +7,7 @@ const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey);
 
 // Указываем, какую модель мы будем использовать
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest"});
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash"});
 
 // Экспортируем готовую к использованию модель
 export const geminiModel = model;
