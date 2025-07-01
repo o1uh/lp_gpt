@@ -1,34 +1,27 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react'; // useMemo нужен для оптимизации nodeTypes
 import ReactFlow, { 
   Background, 
   Controls, 
   MiniMap, 
-  useNodesState,
-  useEdgesState,
-  type Node, 
-  type Edge, 
-  type OnNodesChange, 
-  type OnEdgesChange 
 } from 'reactflow';
+// Импортируем только те типы, которые нужны для пропсов
+import { type Node, type Edge, type OnNodesChange, type OnEdgesChange, type Connection } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { ArchitectureNode } from './ArchitectureNode'; // 1. Импортируем наш кастомный узел
+import { ArchitectureNode } from './ArchitectureNode';
 
+// Интерфейс пропсов остается таким же
 interface ArchitecturePanelProps {
-  initialNodes: Node[]; 
-  initialEdges: Edge[];
+  nodes: Node[]; 
+  edges: Edge[];
+  onNodesChange: OnNodesChange; 
+  onEdgesChange: OnEdgesChange;
+  onConnect: (params: Connection | Edge) => void;
 }
 
-export const ArchitecturePanel = ({ initialNodes, initialEdges }: ArchitecturePanelProps) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+export const ArchitecturePanel = ({ nodes, edges, onNodesChange, onEdgesChange, onConnect }: ArchitecturePanelProps) => {
 
-  // 2. Создаем объект с типами узлов, которые мы будем использовать
+  // Оборачиваем nodeTypes в useMemo, чтобы избежать ненужных перерисовок
   const nodeTypes = useMemo(() => ({ architectureNode: ArchitectureNode }), []);
-
-  useEffect(() => {
-    setNodes(initialNodes);
-    setEdges(initialEdges);
-  }, [initialNodes, initialEdges, setNodes, setEdges]);
 
   return (
     <div className="p-4 flex flex-col h-full">
@@ -39,8 +32,10 @@ export const ArchitecturePanel = ({ initialNodes, initialEdges }: ArchitecturePa
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
-          nodeTypes={nodeTypes} // 3. Передаем наши кастомные типы в ReactFlow
+          onConnect={onConnect}
+          nodeTypes={nodeTypes}
           fitView
+          className="bg-gray-800"
         >
           <Background />
           <Controls />

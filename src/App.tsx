@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Sidebar } from './components/layout/Sidebar';
 import { ProjectListPanel } from './components/layout/ProjectListPanel';
 import { ChatPanel } from './components/chat/ChatPanel';
 import { ArchitecturePanel } from './components/architecture/ArchitecturePanel';
 import type { Message } from './types';
 import { geminiModel } from './services/gemini';
-import { type Node, type Edge } from 'reactflow';
+import { type Node, type Edge, type OnNodesChange, type OnEdgesChange, type Connection, applyNodeChanges, applyEdgeChanges, addEdge as addEdgeHelper } from 'reactflow';
 
 function App() {
   const [isPanelVisible, setIsPanelVisible] = useState(true);
@@ -15,9 +15,23 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
 
   const [nodes, setNodes] = useState<Node[]>([
-    { id: 'start-node', type: 'input', data: { label: 'Начните проектирование...' }, position: { x: 250, y: 5 } }
+    { id: 'start-node', type: 'input', data: { label: 'Начните проектирование...' }, position: { x: 250, y: 5 }, style: { width: 180, height: 50 } }
   ]);
   const [edges, setEdges] = useState<Edge[]>([]);
+  
+  // 1. Создаем обработчики, которые будем передавать в панель архитектуры
+  const onNodesChange: OnNodesChange = useCallback(
+    (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
+    [setNodes]  
+  );
+  const onEdgesChange: OnEdgesChange = useCallback(
+    (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
+    [setEdges]
+  );
+  const onConnect = useCallback(
+    (params: Connection | Edge) => setEdges((eds) => addEdgeHelper(params, eds)),
+    [setEdges]
+  );
   
   const chatHistory = [
     { id: 1, name: "Проект CRM-системы" },
@@ -42,24 +56,23 @@ function App() {
         generationConfig: { maxOutputTokens: 8192 },
       });
 
-      // Улучшенный системный промпт v2
       const systemInstruction = `СИСТЕМНАЯ ИНСТРУКЦИЯ:
       Ты — AI-ассистент по проектированию IT-архитектуры.
-      Твоя задача — вести диалог и пошагово строить архитектуру вместе с пользователем.
-      ИСПОЛЬЗУЙ MARKDOWN для форматирования своих ответов: списки, жирный шрифт и т.д.
+      Твоя задача — вести диалог и пошагово строить архитектуру.
+      ИСПОЛЬЗУЙ MARKDOWN для форматирования текстового ответа.
       
-      ТЕКУЩАЯ АРХИТЕКТУРА:
+      ТЕКУЩАЯ АРХИТЕКТУРА (включая позиции, размеры и id, которые задал пользователь):
       ${JSON.stringify({ nodes, edges }, null, 2)}
 
       ПРАВИЛА ОБНОВЛЕНИЯ АРХИТЕКТУРЫ:
       1. На основе ТЕКУЩЕЙ АРХИТЕКТУРЫ и запроса пользователя, верни ОБНОВЛЕННУЮ ПОЛНУЮ архитектуру.
-      2. СОХРАНЯЙ ПОЗИЦИИ (position) и ID существующих узлов, если пользователь явно не просит их изменить.
-      3. При добавлении нового узла, давай ему УНИКАЛЬНЫЙ ID (например, 'node-1', 'node-2') и располагай его в логичном месте, не накладывая на другие.
-      4. Если в текущей архитектуре есть узел с id 'start-node', УДАЛИ его из нового списка узлов.
+      2. ОБЯЗАТЕЛЬНО СОХРАНЯЙ ID, ПОЗИЦИИ (position) и РАЗМЕРЫ (style) существующих узлов. Не меняй их, если пользователь явно не попросил.
+      3. При добавлении нового узла, давай ему УНИКАЛЬНЫЙ ID и располагай его в свободном месте. Задавай ему начальный размер style: { width: 180, height: 100 }.
+      4. Если в текущей архитектуре есть узел с id 'start-node', УДАЛИ его.
+      5. Связи (edges) могут иметь метку (label).
       
-      В конце своего ответа ты ОБЯЗАТЕЛЬНО должен вернуть JSON в тегах \`\`\`json ... \`\`\` с ключами "nodes" и "edges".
-      Формат узла: { "id": "string", "type": "architectureNode", "data": { "label": "Заголовок", "implementation": "Описание..." }, "position": { "x": number, "y": number } }
-      Всегда устанавливай тип узла "architectureNode" для новых узлов.
+      В конце ответа верни JSON в тегах \`\`\`json ... \`\`\`.
+      Формат узла: { "id": "string", "type": "architectureNode", "data": { "label": "Заголовок", "implementation": "Описание..." }, "position": { "x": number, "y": number }, "style": { "width": number, "height": number } }
       
       НАЧАЛО ДИАЛОГА.`;
       
@@ -114,9 +127,7 @@ function App() {
   return (
     <div className="bg-gray-900 text-white h-screen flex">
       <Sidebar />
-      
       {isPanelVisible && <ProjectListPanel chatHistory={chatHistory} />}
-      
       <main className="flex-grow flex flex-row">
         <ChatPanel 
           messages={messages} 
@@ -126,9 +137,13 @@ function App() {
           isLoading={isLoading}
         />
         <div className={`transition-all duration-300 w-full flex-1`}>
+          {/* 3. Передаем и nodes/edges, и функции для их изменения */}
           <ArchitecturePanel 
-            initialNodes={nodes} 
-            initialEdges={edges}
+            nodes={nodes} 
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
           />
         </div>
       </main>
