@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { type Node, type Edge } from 'reactflow';
-import type { Message } from '../types';
-import { geminiModel } from '../api/gemini'; // Путь изменился
+import  type { Message } from '../types';
+import { geminiModel } from '../api/gemini';
+import { sandboxTasks } from '../components/config/templates'; // <-- ИСПРАВЛЕННЫЙ ПУТЬ
 
-// Определяем, какие данные нужны нашему хуку
 interface UseChatProps {
   nodes: Node[];
   edges: Edge[];
@@ -16,6 +16,19 @@ export const useChat = ({ nodes, edges, setNodes, setEdges }: UseChatProps) => {
     { id: 1, text: "Здравствуйте! Я ваш AI-ассистент по архитектуре. Какой проект мы будем сегодня проектировать?", sender: 'ai' }
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  
+  const [promptSuggestions, setPromptSuggestions] = useState<string[]>([]);
+  
+  useEffect(() => {
+    const hasUserInteracted = messages.some(m => m.sender === 'user');
+    if (!hasUserInteracted) {
+      const initialSuggestions = sandboxTasks.map(task => task.name);
+      initialSuggestions.push("Начать с чистого листа");
+      setPromptSuggestions(initialSuggestions);
+    } else {
+      setPromptSuggestions([]);
+    }
+  }, [messages]);
 
   const sendMessage = async (text: string) => {
     const userMessage: Message = { id: Date.now(), text, sender: 'user' };
@@ -23,10 +36,14 @@ export const useChat = ({ nodes, edges, setNodes, setEdges }: UseChatProps) => {
     setIsLoading(true);
 
     try {
-      const historyForAPI = messages.filter(msg => msg.id !== 1).map(msg => ({
+      const currentConversation: Message[] = [...messages, userMessage];
+      const historyForAPI = currentConversation.map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'model' as 'user' | 'model',
         parts: [{ text: msg.text }],
       }));
+      if (historyForAPI.length > 0 && historyForAPI[0].role === 'model') {
+        historyForAPI.shift();
+      }
       
       const chat = geminiModel.startChat({
         history: historyForAPI,
@@ -68,8 +85,7 @@ export const useChat = ({ nodes, edges, setNodes, setEdges }: UseChatProps) => {
         **Пример формата связи:** { "id": "e1-2", "source": "id_узла_1", "target": "id_узла_2", "label": "Описание связи", "sourceHandle": "right", "targetHandle": "left" }
 
         НАЧАЛО ДИАЛОГА.
-        `;
-      
+        `;      
       let messageToSend = text;
       const hasUserMessagedBefore = messages.some(msg => msg.sender === 'user');
       if (!hasUserMessagedBefore) {
@@ -84,7 +100,6 @@ export const useChat = ({ nodes, edges, setNodes, setEdges }: UseChatProps) => {
 
       const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
       const match = aiResponseText.match(jsonRegex);
-
       if (match && match[1]) {
         try {
           const parsedJson = JSON.parse(match[1]);
@@ -92,11 +107,9 @@ export const useChat = ({ nodes, edges, setNodes, setEdges }: UseChatProps) => {
           if (parsedJson.edges) setEdges(parsedJson.edges);
         } catch (e) { console.error("Ошибка парсинга JSON от AI:", e); }
       }
-      
       const chatResponse = aiResponseText.replace(jsonRegex, '').trim();
       const aiMessage: Message = { id: Date.now() + 1, text: chatResponse || "Архитектура обновлена.", sender: 'ai' };
       setMessages(prev => [...prev, aiMessage]);
-
     } catch (error) {
       console.error("Ошибка при вызове Gemini API:", error);
       const errorMessage: Message = { id: Date.now() + 1, text: "К сожалению, произошла ошибка.", sender: 'ai' };
@@ -106,6 +119,5 @@ export const useChat = ({ nodes, edges, setNodes, setEdges }: UseChatProps) => {
     }
   };
 
-  // Хук возвращает состояние и функцию для управления им
-  return { messages, isLoading, sendMessage };
+  return { messages, isLoading, sendMessage, setMessages, promptSuggestions };
 };

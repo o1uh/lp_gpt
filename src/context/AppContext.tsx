@@ -2,9 +2,11 @@ import { createContext, useState, useCallback, useContext } from 'react';
 import type { ReactNode } from 'react';
 import { type Node, type Edge, type OnNodesChange, type OnEdgesChange, type Connection, applyNodeChanges, applyEdgeChanges, addEdge as addEdgeHelper } from 'reactflow';
 import type { Message } from '../types';
-import { useChat } from '../hooks/useChat'; // Наш будущий хук
+import { useChat } from '../hooks/useChat';
+import { templateBlog, sandboxTasks } from '../components/config/templates';
 
-// 1. Описываем, какие данные будут храниться в контексте
+type SandboxTask = typeof sandboxTasks[0];
+
 interface AppContextType {
   nodes: Node[];
   edges: Edge[];
@@ -14,27 +16,44 @@ interface AppContextType {
   messages: Message[];
   isLoading: boolean;
   sendMessage: (text: string) => void;
+  startNewProject: (template?: 'empty' | 'blog') => void;
+  startSandboxTask: (task: SandboxTask) => void;
+  promptSuggestions: string[];
 }
 
-// 2. Создаем сам контекст
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-// 3. Создаем "Провайдер" - компонент, который будет оборачивать наше приложение
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [nodes, setNodes] = useState<Node[]>([
     { id: 'start-node', type: 'input', data: { label: 'Начните проектирование...' }, position: { x: 250, y: 5 }, style: { width: 180, height: 50 } }
   ]);
   const [edges, setEdges] = useState<Edge[]>([]);
 
-  // Логика управления узлами и связями остается здесь
   const onNodesChange: OnNodesChange = useCallback((changes) => setNodes((nds) => applyNodeChanges(changes, nds)), [setNodes]);
   const onEdgesChange: OnEdgesChange = useCallback((changes) => setEdges((eds) => applyEdgeChanges(changes, eds)), [setEdges]);
   const onConnect = useCallback((params: Connection | Edge) => setEdges((eds) => addEdgeHelper(params, eds)), [setEdges]);
 
-  // 4. Используем наш кастомный хук для всей логики чата
-  const { messages, isLoading, sendMessage } = useChat({ nodes, edges, setNodes, setEdges });
+  const { messages, isLoading, sendMessage, setMessages, promptSuggestions } = useChat({ nodes, edges, setNodes, setEdges });
 
-  // 5. Собираем все значения, которые предоставим дочерним компонентам
+  const startNewProject = (template: 'empty' | 'blog' = 'empty') => {
+    setMessages([{ id: Date.now(), text: "Начинаем новый проект! Что будем делать?", sender: 'ai' }]);
+    if (template === 'blog') {
+      setNodes(templateBlog.nodes);
+      setEdges(templateBlog.edges);
+    } else {
+      setNodes([{ id: 'start-node', type: 'input', data: { label: 'Начните проектирование...' }, position: { x: 250, y: 5 }, style: { width: 180, height: 50 } }]);
+      setEdges([]);
+    }
+  };
+  
+  const startSandboxTask = (task: SandboxTask) => {
+    setNodes(task.initialNodes.length > 0 ? task.initialNodes : [
+      { id: 'start-node', type: 'input', data: { label: 'Начните проектирование...' }, position: { x: 250, y: 5 }, style: { width: 180, height: 50 } }
+    ]);
+    setEdges(task.initialEdges);
+    setMessages([{ id: Date.now(), text: task.startMessage, sender: 'ai' }]);
+  };
+
   const value = {
     nodes,
     edges,
@@ -44,12 +63,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     messages,
     isLoading,
     sendMessage,
+    startNewProject,
+    startSandboxTask,
+    promptSuggestions,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
-// 6. Создаем хук для удобного доступа к контексту
 export const useAppContext = () => {
   const context = useContext(AppContext);
   if (context === undefined) {

@@ -1,19 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
 import { PanelLeftClose, PanelLeftOpen, Send } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
+import { useAppContext } from '../../context/AppContext';
 import { ChatMessage } from './ChatMessage';
-import { useAppContext } from '../../context/AppContext'; // 1. Импортируем наш хук
+import { PromptSuggestions } from './PromptSuggestions';
 
-// 2. Упрощаем пропсы. Теперь нам нужны только isPanelVisible и onTogglePanel
 interface ChatPanelProps {
   isPanelVisible: boolean;
   onTogglePanel: () => void;
 }
 
 export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => {
-  // 3. Получаем все нужные данные и функции прямо из контекста
-  const { messages, isLoading, sendMessage } = useAppContext();
-  
+  const { messages, sendMessage, isLoading, promptSuggestions } = useAppContext();
   const [inputValue, setInputValue] = useState('');
   const chatEndRef = useRef<null | HTMLDivElement>(null);
 
@@ -23,8 +21,18 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => 
 
   const handleSendMessageClick = () => {
     if (inputValue.trim() === '' || isLoading) return;
-    sendMessage(inputValue); // Вызываем функцию из контекста
+    sendMessage(inputValue);
     setInputValue('');
+  };
+  
+  const handleSuggestionClick = (suggestion: string) => {
+    if (isLoading) return;
+    if (suggestion === "Начать с чистого листа") {
+      // Эта логика должна быть в AppContext/useChat, но для простоты пока здесь
+      setInputValue(''); 
+    } else {
+      sendMessage(suggestion);
+    }
   };
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -69,25 +77,31 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => 
         <div ref={chatEndRef} />
       </div>
 
-      <div className="mt-4 relative flex items-start">
-        <TextareaAutosize
-          placeholder={isLoading ? "AI думает..." : "Задайте ваш вопрос... (Ctrl+Enter для отправки)"}
-          className="w-full p-3 pr-12 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleKeyPress}
-          disabled={isLoading}
-          minRows={1}
-          maxRows={6}
+      <div className="mt-4">
+        <PromptSuggestions 
+          suggestions={promptSuggestions} 
+          onSuggestionClick={handleSuggestionClick} 
         />
-        <button
-          onClick={handleSendMessageClick}
-          className="absolute right-2 bottom-2 p-2 rounded-lg text-gray-400 hover:bg-gray-600 hover:text-white transition-colors"
-          disabled={isLoading}
-          title="Отправить (Ctrl+Enter)"
-        >
-          <Send size={20} />
-        </button>
+        <div className="relative flex items-start">
+          <TextareaAutosize
+            placeholder={isLoading ? "AI думает..." : "Задайте ваш вопрос... (Ctrl+Enter для отправки)"}
+            className="w-full p-3 pr-12 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyPress}
+            disabled={isLoading}
+            minRows={1}
+            maxRows={6}
+          />
+          <button
+            onClick={handleSendMessageClick}
+            className="absolute right-2 bottom-2 p-2 rounded-lg text-gray-400 hover:bg-gray-600 hover:text-white transition-colors"
+            disabled={isLoading}
+            title="Отправить (Ctrl+Enter)"
+          >
+            <Send size={20} />
+          </button>
+        </div>
       </div>
     </div>
   );
