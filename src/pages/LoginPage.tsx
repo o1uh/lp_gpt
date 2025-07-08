@@ -1,7 +1,5 @@
-import { useEffect } from 'react'; // 1. Импортируем useEffect
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom'; // Импортируем useNavigate
 import { loginUser, setInitialPassword } from '../api/authService';
 
 export const LoginPage = () => {
@@ -9,17 +7,8 @@ export const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState(''); 
   const [isFirstLogin, setIsFirstLogin] = useState(false);
-  const { isAuthenticated, login: authLogin } = useAuth(); // 2. Получаем статус авторизации
-  const navigate = useNavigate();
-
-  // 3. Добавляем эффект, который сработает при загрузке компонента
-  useEffect(() => {
-    // Если пользователь уже авторизован, перенаправляем его
-    if (isAuthenticated) {
-      navigate('/app', { replace: true });
-    }
-  }, [isAuthenticated, navigate]);
-
+  const {login: authLogin } = useAuth(); // 2. Получаем статус авторизации
+  
   const handleLogin = async () => {
     setErrorMessage('');
     try {

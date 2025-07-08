@@ -5,20 +5,26 @@ import App from './App.tsx'
 import { LoginPage } from './pages/LoginPage.tsx';
 import { AppLayout } from './pages/AppLayout.tsx';
 import { ProtectedRoute } from './components/auth/ProtectedRoute.tsx';
+import { PublicOnlyRoute } from './components/auth/PublicOnlyRoute.tsx'; // 1. Импортируем наш новый защитник
 import './index.css'
 
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <App />, // Корневой элемент с Провайдером
+    element: <App />,
     children: [
       {
-        index: true, // Главная страница по умолчанию
+        index: true,
         element: <Navigate to="/login" replace />,
       },
       {
         path: "login",
-        element: <LoginPage />,
+        // 2. Оборачиваем LoginPage в PublicOnlyRoute
+        element: (
+          <PublicOnlyRoute>
+            <LoginPage />
+          </PublicOnlyRoute>
+        ),
       },
       {
         path: "app",
