@@ -11,7 +11,7 @@ interface ChatPanelProps {
 }
 
 export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => {
-  const { messages, sendMessage, isLoading, promptSuggestions } = useAppContext();
+  const { messages, sendMessage, isLoading, promptSuggestions, activeProjectName } = useAppContext();
   const [inputValue, setInputValue] = useState('');
   const chatEndRef = useRef<null | HTMLDivElement>(null);
 
@@ -54,7 +54,7 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => 
         >
           {isPanelVisible ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
         </button>
-        <h2 className="text-xl font-bold">Диалог с AI</h2>
+        <h2 className="text-xl font-bold truncate">{activeProjectName}</h2>
       </div>
 
       <div className="flex-grow bg-gray-800 rounded-lg p-4 space-y-4 overflow-y-auto">

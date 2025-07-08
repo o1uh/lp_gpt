@@ -1,9 +1,10 @@
-import { Layers, User, Settings, LogOut } from 'lucide-react'; // 1. Импортируем иконку LogOut
-import { useAuth } from '../../context/AuthContext'; // 2. Импортируем хук для доступа к функции logout
+import { Layers, User, Settings, LogOut, Save } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { useAppContext } from '../../context/AppContext'; // Импортируем AppContext
 
 export const Sidebar = () => {
-  // 3. Получаем функцию logout из нашего контекста
   const { logout } = useAuth();
+  const { saveCurrentProject } = useAppContext(); // Получаем функцию сохранения
 
   return (
     <nav className="w-16 bg-gray-800 p-2 flex flex-col items-center justify-between">
@@ -13,7 +14,10 @@ export const Sidebar = () => {
           <Layers size={24} />
         </button>
       </div>
-      
+      {/* НОВАЯ КНОПКА СОХРАНЕНИЯ */}
+        <button onClick={saveCurrentProject} className="p-2 rounded-lg hover:bg-gray-700 transition-colors" title="Сохранить проект">
+          <Save size={24} />
+        </button>
       {/* Нижняя часть с профилем и настройками */}
       <div className="flex flex-col items-center gap-y-4">
         <button className="p-2 rounded-lg hover:bg-gray-700 transition-colors" title="Профиль">
