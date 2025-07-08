@@ -1,12 +1,15 @@
 // Импортируем переменные окружения
 require('dotenv').config();
 
+
 const db = require('./database.js'); 
 const express = require('express');
 const cors = require('cors');
 
 // Импортируем наши роуты
 const authRoutes = require('./routes/authRoutes');
+const projectRoutes = require('./routes/projectRoutes');
+const authMiddleware = require('./middleware/authMiddleware'); 
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -16,8 +19,9 @@ app.use(express.json());
 
 // --- РОУТЫ ---
 
-// Подключаем роуты авторизации по префиксу /api/auth
+// Подключаем роуты авторизации по префиксу 
 app.use('/api/auth', authRoutes);
+app.use('/api/projects', authMiddleware, projectRoutes); 
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });

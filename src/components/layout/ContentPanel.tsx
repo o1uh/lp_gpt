@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Plus, Hash, BookOpen, ClipboardCheck, MessageSquare } from 'lucide-react';
 import { Modal } from '../ui/Modal';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext, type Project } from '../../context/AppContext';
 
 // Определяем типы для наших вкладок
 type Tab = 'assistant' | 'teacher' | 'examiner';
@@ -12,23 +12,17 @@ interface ContentPanelProps {
   onTabChange: (tab: Tab) => void;
 }
 
-// Фейковые данные для вкладки "Ассистент"
-const assistantDialogs = [
-  { id: 1, name: "Проект CRM-системы" },
-  { id: 2, name: "Архитектура блога" },
-];
 
 
 
 export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
-  const { startNewProject } = useAppContext();
+  const { startNewProject, projects, loadProject } = useAppContext(); // Получаем реальные проекты
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleCreateProject = (template: 'empty' | 'blog') => {
-    startNewProject(template);
+  const handleCreateEmptyProject = () => {
+    startNewProject();
     setIsModalOpen(false);
   };
-
   // Функция для стилизации кнопок-вкладок
   const getTabClassName = (tabName: Tab) => {
     return `p-2 rounded-lg transition-colors ${
@@ -46,11 +40,11 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
           <>
             <h2 className="text-xs font-bold text-gray-400 uppercase mb-2">Диалоги</h2>
             <ul className="space-y-2">
-              {assistantDialogs.map(chat => (
-                <li key={chat.id}>
-                  <a href="#" className="flex items-center gap-x-2 p-2 rounded text-gray-300 hover:bg-gray-700 hover:text-white">
-                    <Hash size={16} /> <span>{chat.name}</span>
-                  </a>
+              {projects.map((project: Project) => (
+                <li key={project.id}>
+                  <button onClick={() => loadProject(project.id)} className="w-full text-left flex items-center gap-x-2 p-2 rounded text-gray-300 hover:bg-gray-700 hover:text-white">
+                    <Hash size={16} /> <span>{project.name}</span>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -105,20 +99,15 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Создать новый проект">
         <div className="flex flex-col space-y-4">
           <p className="text-sm text-gray-400">
-            Начните с чистого листа или используйте готовый шаблон.
+            Начните с чистого листа. Шаблоны будут добавлены в будущем.
           </p>
           <button 
-            onClick={() => handleCreateProject('empty')} 
+            onClick={handleCreateEmptyProject} 
             className="w-full text-left p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
           >
             Пустой проект
           </button>
-          <button 
-            onClick={() => handleCreateProject('blog')} 
-            className="w-full text-left p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-          >
-            Шаблон: Блог
-          </button>
+          {/* Пока убираем кнопку шаблона, чтобы не усложнять */}
         </div>
       </Modal>
     </aside>

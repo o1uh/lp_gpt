@@ -2,16 +2,18 @@ import { useState, useEffect } from 'react';
 import { type Node, type Edge } from 'reactflow';
 import  type { Message } from '../types';
 import { geminiModel } from '../api/gemini';
-import { sandboxTasks } from '../components/config/templates'; // <-- ИСПРАВЛЕННЫЙ ПУТЬ
+import { sandboxTasks } from '../components/config/templates'; 
+import { saveProjectState } from '../api/projectService';
 
 interface UseChatProps {
   nodes: Node[];
   edges: Edge[];
+  activeProjectId: number | null
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
 }
 
-export const useChat = ({ nodes, edges, setNodes, setEdges }: UseChatProps) => {
+export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges }: UseChatProps) => {
   const [messages, setMessages] = useState<Message[]>([
     { id: 1, text: "Здравствуйте! Я ваш AI-ассистент по архитектуре. Какой проект мы будем сегодня проектировать?", sender: 'ai' }
   ]);
@@ -119,5 +121,22 @@ export const useChat = ({ nodes, edges, setNodes, setEdges }: UseChatProps) => {
     }
   };
 
-  return { messages, isLoading, sendMessage, setMessages, promptSuggestions };
+   const saveCurrentProject = async () => {
+    if (!activeProjectId) {
+      alert("Нет активного проекта для сохранения.");
+      return;
+    }
+    setIsLoading(true); // Теперь мы можем использовать setIsLoading
+    try {
+      await saveProjectState(activeProjectId, { nodes, edges, messages });
+      alert("Проект успешно сохранен!");
+    } catch (error) {
+      console.error("Ошибка сохранения проекта:", error);
+      alert("Не удалось сохранить проект.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return { messages, isLoading, sendMessage, setMessages, promptSuggestions, saveCurrentProject};
 };
