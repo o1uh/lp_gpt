@@ -1,21 +1,20 @@
 import { Navigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext'; // 1. Импортируем наш хук
 
-// Определяем пропсы: компонент будет принимать дочерние элементы
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  // Проверяем, есть ли наш флаг в localStorage
-  const isAuthenticated = localStorage.getItem('isAuthenticated');
+  // 2. Получаем статус авторизации напрямую из контекста
+  const { isAuthenticated } = useAuth();
 
-  // Если флага нет (пользователь не вошел)...
+  // 3. Логика остается той же, но теперь она основана на состоянии, а не на localStorage
   if (!isAuthenticated) {
-    // ...перенаправляем его на страницу входа.
-    // `replace` нужен, чтобы пользователь не мог вернуться на защищенную страницу кнопкой "назад" в браузере.
+    // Если пользователь не авторизован, перенаправляем его на страницу входа.
     return <Navigate to="/login" replace />;
   }
 
-  // Если флаг есть, просто отрисовываем дочерний компонент (в нашем случае - <App />)
+  // Если авторизован, показываем запрошенную страницу (наш <AppLayout />)
   return children;
 };

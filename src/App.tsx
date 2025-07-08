@@ -1,12 +1,16 @@
+// src/App.tsx
 import { Outlet } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
+import { AuthProvider } from './context/AuthContext'; // Импортируем
 
 function App() {
   return (
-    // Оборачиваем все приложение в наш Провайдер, чтобы контекст был доступен везде
-    <AppProvider>
-      <Outlet />
-    </AppProvider>
+    // Оборачиваем все в AuthProvider, а внутри него AppProvider
+    <AuthProvider>
+      <AppProvider>
+        <Outlet />
+      </AppProvider>
+    </AuthProvider>
   );
 }
 
