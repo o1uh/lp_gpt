@@ -24,3 +24,4 @@ dist-ssr
 *.sw?
 .env
 server/.env
+all_code.txt

@@ -42,6 +42,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null); 
   const [activeProjectName, setActiveProjectName] = useState("Новый проект");
 
+// Функция для загрузки списка проектов
+  const loadProjects = useCallback(async () => {
+    try {
+      const data = await fetchProjects();
+      setProjects(data);
+    } catch (error) { console.error("Ошибка загрузки проектов:", error); }
+  }, []);
+
   useEffect(() => {
     const loadProjects = async () => {
       try {
@@ -61,14 +69,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const { messages, isLoading, sendMessage, setMessages, promptSuggestions, saveCurrentProject } = useChat({ nodes, edges, setNodes, setEdges, activeProjectId });
 
-  // Функция для загрузки списка проектов
-  const loadProjects = useCallback(async () => {
-    try {
-      const data = await fetchProjects();
-      setProjects(data);
-    } catch (error) { console.error("Ошибка загрузки проектов:", error); }
-  }, []);
-
+  
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
