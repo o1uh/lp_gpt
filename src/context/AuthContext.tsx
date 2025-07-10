@@ -1,8 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import type { ReactNode } from 'react'; // 1. Исправляем импорт
+import type { ReactNode } from 'react'; 
 import { useNavigate } from "react-router-dom";
+//import { useAppContext } from './AppContext';
 
-// 2. Создаем интерфейс для объекта пользователя, чтобы избежать `any`
 interface User {
   id: number;
   login: string;
@@ -23,7 +23,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const navigate = useNavigate();
 
-  // 3. Оборачиваем logout в useCallback, чтобы его можно было безопасно добавить в зависимости useEffect
+  //const appCtx = useAppContext();
+  
   const logout = useCallback(() => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -42,11 +43,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // Если есть токен, но нет пользователя - это невалидное состояние, выходим
           logout();
         }
-      } catch (_e) { // 4. Игнорируем неиспользуемую переменную `e`
+      } catch (_e) { // Игнорируем неиспользуемую переменную `e`
         logout();
       }
     }
-  }, [token, logout]); // 5. Добавляем logout в массив зависимостей
+  }, [token, logout]); 
 
   const login = (data: { token: string; user: User }) => {
     localStorage.setItem('token', data.token);
