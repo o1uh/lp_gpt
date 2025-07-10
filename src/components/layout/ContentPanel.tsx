@@ -19,10 +19,7 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
   const { startNewProject, projects, loadProject } = useAppContext(); // Получаем реальные проекты
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleCreateEmptyProject = () => {
-    startNewProject();
-    setIsModalOpen(false);
-  };
+  
   // Функция для стилизации кнопок-вкладок
   const getTabClassName = (tabName: Tab) => {
     return `p-2 rounded-lg transition-colors ${
@@ -99,15 +96,20 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Создать новый проект">
         <div className="flex flex-col space-y-4">
           <p className="text-sm text-gray-400">
-            Начните с чистого листа. Шаблоны будут добавлены в будущем.
+            Начните с чистого листа или используйте готовый шаблон для быстрого старта.
           </p>
           <button 
-            onClick={handleCreateEmptyProject} 
+            onClick={() => { startNewProject('empty'); setIsModalOpen(false); }}
             className="w-full text-left p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
           >
             Пустой проект
           </button>
-          {/* Пока убираем кнопку шаблона, чтобы не усложнять */}
+          <button 
+            onClick={() => { startNewProject('blog'); setIsModalOpen(false); }}
+            className="w-full text-left p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+          >
+            Шаблон: Блог
+          </button>
         </div>
       </Modal>
     </aside>
