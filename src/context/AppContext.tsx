@@ -5,6 +5,7 @@ import type { Message } from '../types';
 import { useChat } from '../hooks/useChat';
 import { sandboxTasks } from '../components/config/templates';
 import { fetchProjects, createProject, fetchProjectById } from '../api/projectService';
+import { useAuth } from './AuthContext';
 
 type SandboxTask = typeof sandboxTasks[0];
 export interface Project { // Экспортируем, чтобы использовать в других файлах
@@ -41,19 +42,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [projects, setProjects] = useState<Project[]>([]); 
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null); 
   const [activeProjectName, setActiveProjectName] = useState("Новый проект");
+  const { isAuthenticated } = useAuth();
 
-  useEffect(() => {
-    const loadProjects = async () => {
-      try {
-        const data = await fetchProjects();
-        setProjects(data);
-      } catch (error) {
-        console.error("Ошибка загрузки проектов:", error);
-        // TODO: показать ошибку пользователю
-      }
-    };
-    loadProjects();
-  }, []); // Пустой массив зависимостей - выполнится 1 раз
+// Функция для загрузки списка проектов
+  // const loadProjects = useCallback(async () => {
+  //   try {
+  //     const data = await fetchProjects();
+  //     setProjects(data);
+  //   } catch (error) { console.error("Ошибка загрузки проектов:", error); }
+  // }, []);
+
+  const loadProjects = useCallback(async () => {
+    if (!isAuthenticated) return; 
+
+    try {
+      const data = await fetchProjects();
+      setProjects(data);
+    } catch (error) {
+      console.error("Ошибка загрузки проектов:", error);
+    }
+  }, [isAuthenticated]);
+  
 
   const onNodesChange: OnNodesChange = useCallback((changes) => setNodes((nds) => applyNodeChanges(changes, nds)), [setNodes]);
   const onEdgesChange: OnEdgesChange = useCallback((changes) => setEdges((eds) => applyEdgeChanges(changes, eds)), [setEdges]);
@@ -61,14 +70,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const { messages, isLoading, sendMessage, setMessages, promptSuggestions, saveCurrentProject } = useChat({ nodes, edges, setNodes, setEdges, activeProjectId });
 
-  // Функция для загрузки списка проектов
-  const loadProjects = useCallback(async () => {
-    try {
-      const data = await fetchProjects();
-      setProjects(data);
-    } catch (error) { console.error("Ошибка загрузки проектов:", error); }
-  }, []);
-
+  
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
