@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState} from 'react';
 import { type Node, type Edge } from 'reactflow';
 import  type { Message } from '../types';
 import { geminiModel } from '../api/gemini';
-import { sandboxTasks } from '../components/config/templates'; 
 import { saveProjectState } from '../api/projectService';
 
 interface UseChatProps {
@@ -21,17 +20,6 @@ export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges }: U
   
   const [promptSuggestions, setPromptSuggestions] = useState<string[]>([]);
   
-  useEffect(() => {
-    const hasUserInteracted = messages.some(m => m.sender === 'user');
-    if (!hasUserInteracted) {
-      const initialSuggestions = sandboxTasks.map(task => task.name);
-      initialSuggestions.push("Начать с чистого листа");
-      setPromptSuggestions(initialSuggestions);
-    } else {
-      setPromptSuggestions([]);
-    }
-  }, [messages]);
-
   const sendMessage = async (text: string) => {
     const userMessage: Message = { id: Date.now(), text, sender: 'user' };
     setMessages(prev => [...prev, userMessage]);
@@ -78,13 +66,17 @@ export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges }: U
             *   Если узел содержит описание ("implementation"), его начальный размер должен быть больше, чтобы вместить текст, например, 'style: { width: 240, height: 160 }'.
         5.  **Точки соединения (Ручки):** У каждого компонента есть 4 точки для связей: "top", "bottom", "left", "right". При создании или изменении связи используй поля "sourceHandle" и "targetHandle", чтобы точно указать, откуда и куда она идет. Это позволяет создавать аккуратные и читаемые схемы.
 
+        ### ПРАВИЛО ГЕНЕРАЦИИ ПОДСКАЗОК ###
+        В дополнение к основному JSON, верни еще один ключ "suggestions" - это массив из 3-4 коротких, релевантных вопросов или команд, которые пользователь может задать следующими, чтобы развить диалог.
+
         ### ФОРМАТ ВЫХОДА ###
         Твой ответ ВСЕГДА должен состоять из двух частей:
         1.  **Текстовый ответ пользователю:** Твое сообщение в чате, отформатированное с помощью Markdown.
-        2.  **Обновленное состояние холста:** Сразу после текстового ответа, без каких-либо дополнительных слов, ты ОБЯЗАН вернуть полный JSON-объект, описывающий **новое состояние всей схемы**, обернутый в теги \`\`\`json ... \`\`\`.
+        2.  **Обновленное состояние холста:** Сразу после текстового ответа, без каких-либо дополнительных слов, ты ОБЯЗАН вернуть полный JSON-объект, описывающий **новое состояние всей схемы**, обернутый в теги \`\`\`json ... \`\`\` с ключами "nodes", "edges" и "suggestions".
 
         **Пример формата узла:** { "id": "string", "type": "architectureNode", "data": { "label": "Заголовок", "implementation": "Описание..." }, "position": { "x": number, "y": number }, "style": { "width": number, "height": number } }
         **Пример формата связи:** { "id": "e1-2", "source": "id_узла_1", "target": "id_узла_2", "label": "Описание связи", "sourceHandle": "right", "targetHandle": "left" }
+        **Пример формата подсказок: { "suggestions": ["Подсказка 1", "Подсказка 2"] }
 
         НАЧАЛО ДИАЛОГА.
         `;      
@@ -107,7 +99,19 @@ export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges }: U
           const parsedJson = JSON.parse(match[1]);
           if (parsedJson.nodes) setNodes(parsedJson.nodes);
           if (parsedJson.edges) setEdges(parsedJson.edges);
+          
+          // Парсим и устанавливаем подсказки от AI
+          if (parsedJson.suggestions && Array.isArray(parsedJson.suggestions)) {
+            setPromptSuggestions(parsedJson.suggestions);
+          } else {
+            // Если AI не вернул подсказки, скрываем их
+            setPromptSuggestions([]);
+          }
         } catch (e) { console.error("Ошибка парсинга JSON от AI:", e); }
+        
+      }else {
+        // Если в ответе нет JSON, тоже скрываем подсказки
+        setPromptSuggestions([]);
       }
       const chatResponse = aiResponseText.replace(jsonRegex, '').trim();
       const aiMessage: Message = { id: Date.now() + 1, text: chatResponse || "Архитектура обновлена.", sender: 'ai' };
