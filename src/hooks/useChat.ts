@@ -89,9 +89,13 @@ export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges }: U
         messageToSend = `${contextHeader}\n${text}`;
       }
 
+      console.log("ОТПРАВЛЯЕМ В API:", messageToSend);
+      // ------------------------------------
       const result = await chat.sendMessage(messageToSend);
       const aiResponseText = result.response.text();
-
+      // ----------------------
+      console.log("ПОЛУЧЕНО ОТ API:", aiResponseText);
+      
       const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
       const match = aiResponseText.match(jsonRegex);
       if (match && match[1]) {
