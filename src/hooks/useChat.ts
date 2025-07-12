@@ -4,41 +4,42 @@ import  type { Message } from '../types';
 import { geminiModel } from '../api/gemini';
 import { saveProjectState } from '../api/projectService';
 
+type HistoryItem = {
+  role: 'user' | 'model';
+  parts: { text: string }[];
+};
+
 interface UseChatProps {
   nodes: Node[];
   edges: Edge[];
   activeProjectId: number | null
   setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
 }
 
-export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges }: UseChatProps) => {
-  const [messages, setMessages] = useState<Message[]>([
-    { id: 1, text: "Здравствуйте! Я ваш AI-ассистент по архитектуре. Какой проект мы будем сегодня проектировать?", sender: 'ai' }
-  ]);
+export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, messages, setMessages }: UseChatProps) => {
+  // const [messages, setMessages] = useState<Message[]>([
+  //   { id: 1, text: "Здравствуйте! Я ваш AI-ассистент по архитектуре. Какой проект мы будем сегодня проектировать?", sender: 'ai' }
+  // ]);
   const [isLoading, setIsLoading] = useState(false);
   
   const [promptSuggestions, setPromptSuggestions] = useState<string[]>([]);
   
   const sendMessage = async (text: string) => {
     const userMessage: Message = { id: Date.now(), text, sender: 'user' };
+    setPromptSuggestions([]);
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
 
     try {
-      const currentConversation: Message[] = [...messages, userMessage];
-      const historyForAPI = currentConversation.map(msg => ({
-        role: msg.sender === 'user' ? 'user' : 'model' as 'user' | 'model',
-        parts: [{ text: msg.text }],
-      }));
-      if (historyForAPI.length > 0 && historyForAPI[0].role === 'model') {
-        historyForAPI.shift();
-      }
-      
-      const chat = geminiModel.startChat({
-        history: historyForAPI,
-        generationConfig: { maxOutputTokens: 8192 },
-      });
+      const dialogHistory: HistoryItem[] = messages
+        .filter(msg => msg.id !== 1) 
+        .map(msg => ({
+          role: msg.sender === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.text }],
+        }));
 
       const systemInstruction = `
         ### РОЛЬ И ЦЕЛЬ ###
@@ -76,19 +77,41 @@ export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges }: U
 
         **Пример формата узла:** { "id": "string", "type": "architectureNode", "data": { "label": "Заголовок", "implementation": "Описание..." }, "position": { "x": number, "y": number }, "style": { "width": number, "height": number } }
         **Пример формата связи:** { "id": "e1-2", "source": "id_узла_1", "target": "id_узла_2", "label": "Описание связи", "sourceHandle": "right", "targetHandle": "left" }
-        **Пример формата подсказок: { "suggestions": ["Подсказка 1", "Подсказка 2"] }
+        **Пример формата подсказок:** { "suggestions": ["Подсказка 1", "Подсказка 2"] }
 
         НАЧАЛО ДИАЛОГА.
-        `;      
-      let messageToSend = text;
-      const hasUserMessagedBefore = messages.some(msg => msg.sender === 'user');
-      if (!hasUserMessagedBefore) {
-        messageToSend = `${systemInstruction}\nПользователь: ${text}`;
-      } else {
-        const contextHeader = `ТЕКУЩАЯ АРХИТЕКТУРА:\n${JSON.stringify({ nodes, edges }, null, 2)}\n\nЗАПРОС ПОЛЬЗОВАТЕЛЯ:`;
-        messageToSend = `${contextHeader}\n${text}`;
-      }
+        `;    
 
+      const fullHistoryForAPI: HistoryItem[] = [
+        // Это "загружает" роль и правила в память AI для этого конкретного диалога
+        {
+          role: 'user',
+          parts: [{ text: systemInstruction }],
+        },
+        {
+            role: 'model',
+            parts: [{ text: "Понял. Я 'Архитект'. Я готов помочь с проектированием, следуя всем правилам. С чего начнем?" }]
+        },
+        ...dialogHistory // Добавляем всю предыдущую переписку
+      ];
+
+       const chat = geminiModel.startChat({
+        // Передаем полную историю с промптом
+        history: fullHistoryForAPI,
+        generationConfig: { maxOutputTokens: 8192 },
+      });
+      
+      // 3. Отправляем только последнее сообщение пользователя, дополненное контекстом схемы.
+      // AI уже "знает" свою роль и правила из истории, которую мы передали в startChat.
+      const messageToSend = `
+        ТЕКУЩАЯ АРХИТЕКТУРА:
+        ${JSON.stringify({ nodes, edges }, null, 2)}
+
+        ЗАПРОС ПОЛЬЗОВАТЕЛЯ:
+        ${text}
+      `;
+
+      console.log("ИСТОРИЯ:", fullHistoryForAPI)
       console.log("ОТПРАВЛЯЕМ В API:", messageToSend);
       // ------------------------------------
       const result = await chat.sendMessage(messageToSend);
@@ -103,20 +126,17 @@ export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges }: U
           const parsedJson = JSON.parse(match[1]);
           if (parsedJson.nodes) setNodes(parsedJson.nodes);
           if (parsedJson.edges) setEdges(parsedJson.edges);
-          
-          // Парсим и устанавливаем подсказки от AI
-          if (parsedJson.suggestions && Array.isArray(parsedJson.suggestions)) {
-            setPromptSuggestions(parsedJson.suggestions);
-          } else {
-            // Если AI не вернул подсказки, скрываем их
-            setPromptSuggestions([]);
-          }
-        } catch (e) { console.error("Ошибка парсинга JSON от AI:", e); }
-        
+          // Устанавливаем новые подсказки или пустой массив, если их нет
+          setPromptSuggestions(parsedJson.suggestions || []);
+        } catch (e) {
+          console.error("Ошибка парсинга JSON от AI:", e);
+          setPromptSuggestions([]);
+        }
       }else {
         // Если в ответе нет JSON, тоже скрываем подсказки
         setPromptSuggestions([]);
       }
+
       const chatResponse = aiResponseText.replace(jsonRegex, '').trim();
       const aiMessage: Message = { id: Date.now() + 1, text: chatResponse || "Архитектура обновлена.", sender: 'ai' };
       setMessages(prev => [...prev, aiMessage]);

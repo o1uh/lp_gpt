@@ -43,6 +43,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null); 
   const [activeProjectName, setActiveProjectName] = useState("Новый проект");
   const { isAuthenticated } = useAuth();
+  const [messages, setMessages] = useState<Message[]>([]);
 
 // Функция для загрузки списка проектов
   // const loadProjects = useCallback(async () => {
@@ -68,8 +69,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const onEdgesChange: OnEdgesChange = useCallback((changes) => setEdges((eds) => applyEdgeChanges(changes, eds)), [setEdges]);
   const onConnect = useCallback((params: Connection | Edge) => setEdges((eds) => addEdgeHelper(params, eds)), [setEdges]);
 
-  const { messages, isLoading, sendMessage, setMessages, promptSuggestions, saveCurrentProject } = useChat({ nodes, edges, setNodes, setEdges, activeProjectId });
-
+  const { isLoading, sendMessage, promptSuggestions, saveCurrentProject } = useChat({ 
+        nodes, 
+        edges, 
+        activeProjectId,
+        setNodes,
+        setEdges,
+        messages, // Передаем
+        setMessages // Передаем
+    });
   
   useEffect(() => {
     loadProjects();
