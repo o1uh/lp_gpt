@@ -14,6 +14,14 @@ export interface Project { // Экспортируем, чтобы исполь�
   updated_at: string;
 }
 
+type ConfirmationStateType = {
+  isOpen: boolean;
+  title: string;
+  description: string;
+  onConfirm: () => void;
+  onSaveAndConfirm?: () => void; // Делаем опциональным
+};
+
 interface AppContextType {
   nodes: Node[];
   edges: Edge[];
@@ -32,6 +40,9 @@ interface AppContextType {
   loadProject: (projectId: number) => void;
   isDirty: boolean; 
   setIsDirty: React.Dispatch<React.SetStateAction<boolean>>; 
+  confirmationState: ConfirmationStateType; 
+  setConfirmationState: React.Dispatch<React.SetStateAction<ConfirmationStateType>>; 
+  navigateWithDirtyCheck: (action: () => void) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -47,6 +58,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { isAuthenticated } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isDirty, setIsDirty] = useState(false);
+  const [confirmationState, setConfirmationState] = useState({
+    isOpen: false,
+    title: '',
+    description: '',
+    onConfirm: () => {}, 
+  });
+  
 
   const { isLoading, sendMessage, promptSuggestions, saveCurrentProject } = useChat({ 
         nodes, 
@@ -180,6 +198,24 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setMessages([{ id: Date.now(), text: task.startMessage, sender: 'ai' }]);
   };
 
+  const navigateWithDirtyCheck = (action: () => void) => {
+    if (isDirty) {
+      // Если есть несохраненные изменения, открываем модальное окно
+      setConfirmationState({
+        isOpen: true,
+        title: "Несохраненные изменения",
+        description: "У вас есть несохраненные изменения. Вы уверены, что хотите продолжить? Вся несохраненная работа будет потеряна.",
+        onConfirm: () => {
+          action(); // Выполняем исходное действие (например, logout)
+          setConfirmationState({ ...confirmationState, isOpen: false });
+        },
+      });
+    } else {
+      // Если все чисто, просто выполняем действие
+      action();
+    }
+  };
+
   const value = {
     nodes,
     edges,
@@ -197,7 +233,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     loadProject,
     activeProjectName,
     isDirty,
-    setIsDirty
+    setIsDirty,
+    confirmationState, 
+    setConfirmationState, 
+    navigateWithDirtyCheck,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

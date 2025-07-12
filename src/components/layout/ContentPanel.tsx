@@ -16,9 +16,13 @@ interface ContentPanelProps {
 
 
 export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
-  const { startNewProject, projects, loadProject } = useAppContext(); // Получаем реальные проекты
+  const { startNewProject, projects, loadProject, navigateWithDirtyCheck } = useAppContext(); // Получаем реальные проекты
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const handleLoadProject = (projectId: number) => {
+    // Оборачиваем loadProject в нашу проверку
+    navigateWithDirtyCheck(() => loadProject(projectId));
+  };
   
   // Функция для стилизации кнопок-вкладок
   const getTabClassName = (tabName: Tab) => {
@@ -39,7 +43,7 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
             <ul className="space-y-2">
               {projects.map((project: Project) => (
                 <li key={project.id}>
-                  <button onClick={() => loadProject(project.id)} className="w-full text-left flex items-center gap-x-2 p-2 rounded text-gray-300 hover:bg-gray-700 hover:text-white">
+                  <button onClick={() => handleLoadProject(project.id)} className="w-full text-left flex items-center gap-x-2 p-2 rounded text-gray-300 hover:bg-gray-700 hover:text-white">
                     <Hash size={16} /> <span>{project.name}</span>
                   </button>
                 </li>

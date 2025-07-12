@@ -3,6 +3,9 @@ import { Sidebar } from '../components/layout/Sidebar';
 import { ContentPanel } from '../components/layout/ContentPanel'; // Импортируем новый компонент
 import { ChatPanel } from '../components/chat/ChatPanel';
 import { ArchitecturePanel } from '../components/architecture/ArchitecturePanel';
+import { ConfirmationModal } from '../components/ui/ConfirmationModal';
+import { useAppContext } from '../context/AppContext';
+
 
 // Определяем тип для вкладок здесь, чтобы AppLayout им управлял
 type Tab = 'assistant' | 'teacher' | 'examiner';
@@ -11,6 +14,7 @@ export const AppLayout = () => {
   const [isPanelVisible, setIsPanelVisible] = useState(true);
   // Создаем состояние для активной вкладки, по умолчанию - 'assistant'
   const [activeTab, setActiveTab] = useState<Tab>('assistant');
+  const { confirmationState, setConfirmationState } = useAppContext();
 
   return (
     <div className="bg-gray-900 text-white h-screen flex">
@@ -30,6 +34,15 @@ export const AppLayout = () => {
           <ArchitecturePanel />
         </div>
       </main>
+      <ConfirmationModal
+        isOpen={confirmationState.isOpen}
+        onClose={() => setConfirmationState({ ...confirmationState, isOpen: false })}
+        onConfirm={confirmationState.onConfirm}
+        title={confirmationState.title}
+        description={confirmationState.description}
+        confirmText="Да, выйти без сохранения"
+        cancelText="Вернуться"
+      />
     </div>
   );
 };
