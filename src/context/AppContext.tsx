@@ -105,7 +105,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setIsDirty(false);
       }
     } catch (error) { console.error("Ошибка загрузки проекта:", error); }
-  }, [projects, setMessages]); // Зависимость от projects, чтобы найти имя
+  }, [projects, setMessages, setNodes, setEdges]); 
 
 
   //  const startNewProject = async (templateOrName: 'empty' | 'blog' | string = 'empty') => {

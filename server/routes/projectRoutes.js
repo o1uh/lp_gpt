@@ -39,18 +39,16 @@ router.post('/', (req, res) => {
   const userId = req.user.userId;
 
   const projectSql = 'INSERT INTO projects (user_id, name) VALUES (?, ?)';
+  
+  // Просто создаем запись в таблице `projects` и возвращаем ID
   db.run(projectSql, [userId, name || 'Новый проект'], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
     const projectId = this.lastID;
-    const initialNodes = JSON.stringify([{ id: 'start-node', type: 'input', data: { label: 'Начните проектирование...' }, position: { x: 250, y: 5 } }]);
-    const initialMessages = JSON.stringify([{ id: Date.now(), text: `Проект "${name || 'Новый проект'}" создан! С чего начнем?`, sender: 'ai' }]);
-    
-    const stateSql = 'INSERT INTO project_states (project_id, nodes_json, edges_json, messages_json) VALUES (?, ?, ?, ?)';
-    db.run(stateSql, [projectId, initialNodes, '[]', initialMessages], (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.status(201).json({ id: projectId, name: name || 'Новый проект' });
-    });
+    // НЕ создаем здесь начальное состояние. Просто отвечаем.
+    res.status(201).json({ id: projectId, name: name || 'Новый проект' });
   });
 });
 

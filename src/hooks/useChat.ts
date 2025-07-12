@@ -166,17 +166,18 @@ export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, mes
         const projectName = window.prompt("Введите название нового проекта:", "Новый проект");
 
         if (projectName && projectName.trim() !== '') {
-          // 1. Создаем проект в БД и получаем его ID
+          // 1. Сначала создаем проект в БД только с именем
           const newProject = await createProject(projectName);
           
-          // 2. Устанавливаем ID и имя нового проекта как активные
-          setActiveProjectId(newProject.id);
-          setActiveProjectName(newProject.name);
-
-          // 3. Сразу же сохраняем текущее состояние (nodes, edges, messages) для этого нового ID
+          // 2. Теперь, когда у нас есть newProject.id, сохраняем в него текущее состояние холста и чата
+          console.log("ЧТО СОХРАНИЛИ:", newProject, nodes, edges, messages);
           await saveProjectState(newProject.id, { nodes, edges, messages });
           
-          setIsDirty(false); // Проект сохранен, он больше не "грязный"
+          // 3. Обновляем локальное состояние, чтобы приложение "знало" о новом проекте
+          setActiveProjectId(newProject.id);
+          setActiveProjectName(newProject.name);
+          
+          setIsDirty(false); // Проект сохранен
           await loadProjects(); // Обновляем список проектов слева
           alert(`Проект "${projectName}" успешно создан и сохранен!`);
         }
