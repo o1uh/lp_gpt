@@ -14,6 +14,11 @@ export interface Project { // Экспортируем, чтобы исполь�
   updated_at: string;
 }
 
+type SaveModalStateType = {
+  isOpen: boolean;
+  onSave: (name: string) => void;
+};
+
 type ConfirmationStateType = {
   isOpen: boolean;
   title: string;
@@ -45,6 +50,8 @@ interface AppContextType {
   confirmationState: ConfirmationStateType; 
   setConfirmationState: React.Dispatch<React.SetStateAction<ConfirmationStateType>>; 
   navigateWithDirtyCheck: (action: () => void, actionName?: string) => void; 
+  saveModalState: SaveModalStateType; 
+  setSaveModalState: React.Dispatch<React.SetStateAction<SaveModalStateType>>; 
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -66,7 +73,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     description: '',
     onConfirm: () => {},
   });
-  
+  const [saveModalState, setSaveModalState] = useState<SaveModalStateType>({
+    isOpen: false,
+    onSave: () => {}, // Пустая функция по умолчанию
+  });
 
   const { isLoading, sendMessage, promptSuggestions, saveCurrentProject } = useChat({ 
         nodes, 
@@ -80,6 +90,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         loadProjects: () => loadProjects(),
         setActiveProjectId,
         setActiveProjectName,
+        setSaveModalState
     });
 
   const onNodesChange: OnNodesChange = useCallback((changes) => {
@@ -254,6 +265,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     confirmationState, 
     setConfirmationState, 
     navigateWithDirtyCheck,
+    saveModalState,
+    setSaveModalState,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

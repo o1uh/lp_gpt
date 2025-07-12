@@ -5,6 +5,7 @@ import { ChatPanel } from '../components/chat/ChatPanel';
 import { ArchitecturePanel } from '../components/architecture/ArchitecturePanel';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
 import { useAppContext } from '../context/AppContext';
+import { SaveProjectModal } from '../components/ui/SaveProjectModal';
 
 
 // Определяем тип для вкладок здесь, чтобы AppLayout им управлял
@@ -45,6 +46,7 @@ export const AppLayout = () => {
         saveAndConfirmText={confirmationState.saveAndConfirmText} 
         cancelText="Вернуться"
       />
+      <SaveProjectModal />
     </div>
   );
 };

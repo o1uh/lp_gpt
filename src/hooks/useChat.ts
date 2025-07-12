@@ -22,9 +22,10 @@ interface UseChatProps {
   loadProjects: () => Promise<void>;
   setActiveProjectId: React.Dispatch<React.SetStateAction<number | null>>;
   setActiveProjectName: React.Dispatch<React.SetStateAction<string>>;
+  setSaveModalState: React.Dispatch<React.SetStateAction<{ isOpen: boolean; onSave: (name: string) => void; }>>;
 }
 
-export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, messages, setMessages, setIsDirty, loadProjects, setActiveProjectId, setActiveProjectName  }: UseChatProps) => {
+export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, messages, setMessages, setIsDirty, loadProjects, setActiveProjectId, setActiveProjectName, setSaveModalState  }: UseChatProps) => {
   const [isLoading, setIsLoading] = useState(false);
   
   const [promptSuggestions, setPromptSuggestions] = useState<string[]>([]);
@@ -152,7 +153,7 @@ export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, mes
     }
   };
 
-    const saveCurrentProject = async (): Promise<boolean> => {
+  const saveCurrentProject = async (): Promise<boolean> => {
     setIsLoading(true);
     try {
       if (activeProjectId) {
@@ -164,33 +165,47 @@ export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, mes
         return true;
       } else {
         // --- СЦЕНАРИЙ 2: СОХРАНЕНИЕ НОВОГО ПРОЕКТА ---
-        const projectName = window.prompt("Введите название нового проекта:", "Новый проект");
-
-        if (projectName && projectName.trim() !== '') {
-          // 1. Сначала создаем проект в БД только с именем
-          const newProject = await createProject(projectName);
-          
-          // 2. Теперь, когда у нас есть newProject.id, сохраняем в него текущее состояние холста и чата
-          console.log("ЧТО СОХРАНИЛИ:", newProject, nodes, edges, messages);
-          await saveProjectState(newProject.id, { nodes, edges, messages });
-          
-          // 3. Обновляем локальное состояние, чтобы приложение "знало" о новом проекте
-          setActiveProjectId(newProject.id);
-          setActiveProjectName(newProject.name);
-          
-          setIsDirty(false); // Проект сохранен
-          await loadProjects(); // Обновляем список проектов слева
-          alert(`Проект "${projectName}" успешно создан и сохранен!`);
-          return true;
-        } else {
-          return false; // Пользователь отменил ввод имени
-        }
+        return new Promise((resolve) => {
+          setSaveModalState({
+            isOpen: true,
+            onSave: async (projectName) => {
+              if (!projectName || projectName.trim() === '') {
+                // Если пользователь не ввел имя, просто закрываем окно и считаем операцию отмененной
+                resolve(false);
+                return;
+              }
+              
+              // Не нужно здесь снова вызывать setIsLoading, он уже включен
+              try {
+                const newProject = await createProject(projectName);
+                await saveProjectState(newProject.id, { nodes, edges, messages });
+                
+                setActiveProjectId(newProject.id);
+                setActiveProjectName(newProject.name);
+                setIsDirty(false);
+                await loadProjects();
+                
+                alert(`Проект "${projectName}" успешно создан и сохранен!`);
+                resolve(true); // Операция успешна
+              } catch (error) {
+                console.error("Ошибка сохранения проекта:", error);
+                alert("Не удалось сохранить проект.");
+                resolve(false); // Операция не удалась
+              } 
+              // `finally` здесь не нужен, так как главный `finally` ниже все сделает
+            },
+          });
+          // Если пользователь просто закрыл модальное окно (не нажал "Сохранить"), 
+          // нам нужно выключить индикатор загрузки
+          // Но setSaveModalState не ждет, поэтому индикатор выключится в `finally` основного `try`
+        });
       }
     } catch (error) {
-      console.error("Ошибка сохранения проекта:", error);
-      alert("Не удалось сохранить проект.");
-      return false;
+      console.error("Общая ошибка сохранения:", error);
+      alert("Произошла непредвиденная ошибка при сохранении.");
+      return false; // Возвращаем неудачу
     } finally {
+      // Выключаем индикатор загрузки в любом случае, после всех операций
       setIsLoading(false);
     }
   };
