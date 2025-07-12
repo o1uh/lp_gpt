@@ -3,6 +3,7 @@ import { type Node, type Edge } from 'reactflow';
 import  type { Message } from '../types';
 import { geminiModel } from '../api/gemini';
 import { saveProjectState } from '../api/projectService';
+import { createProject } from '../api/projectService';
 
 type HistoryItem = {
   role: 'user' | 'model';
@@ -17,17 +18,19 @@ interface UseChatProps {
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  setIsDirty: React.Dispatch<React.SetStateAction<boolean>>;  
+  loadProjects: () => Promise<void>;
+  setActiveProjectId: React.Dispatch<React.SetStateAction<number | null>>;
+  setActiveProjectName: React.Dispatch<React.SetStateAction<string>>;
 }
 
-export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, messages, setMessages }: UseChatProps) => {
-  // const [messages, setMessages] = useState<Message[]>([
-  //   { id: 1, text: "Здравствуйте! Я ваш AI-ассистент по архитектуре. Какой проект мы будем сегодня проектировать?", sender: 'ai' }
-  // ]);
+export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, messages, setMessages, setIsDirty, loadProjects, setActiveProjectId, setActiveProjectName  }: UseChatProps) => {
   const [isLoading, setIsLoading] = useState(false);
   
   const [promptSuggestions, setPromptSuggestions] = useState<string[]>([]);
   
   const sendMessage = async (text: string) => {
+    setIsDirty(true);
     const userMessage: Message = { id: Date.now(), text, sender: 'user' };
     setPromptSuggestions([]);
     setMessages(prev => [...prev, userMessage]);
@@ -150,14 +153,34 @@ export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, mes
   };
 
    const saveCurrentProject = async () => {
-    if (!activeProjectId) {
-      alert("Нет активного проекта для сохранения.");
-      return;
-    }
-    setIsLoading(true); // Теперь мы можем использовать setIsLoading
+    setIsLoading(true);
     try {
-      await saveProjectState(activeProjectId, { nodes, edges, messages });
-      alert("Проект успешно сохранен!");
+      if (activeProjectId) {
+        // --- СЦЕНАРИЙ 1: ОБНОВЛЕНИЕ СУЩЕСТВУЮЩЕГО ПРОЕКТА ---
+        await saveProjectState(activeProjectId, { nodes, edges, messages });
+        setIsDirty(false);
+        await loadProjects(); // Обновляем список, чтобы видеть новую дату
+        alert("Проект успешно обновлен!");
+      } else {
+        // --- СЦЕНАРИЙ 2: СОХРАНЕНИЕ НОВОГО ПРОЕКТА ---
+        const projectName = window.prompt("Введите название нового проекта:", "Новый проект");
+
+        if (projectName && projectName.trim() !== '') {
+          // 1. Создаем проект в БД и получаем его ID
+          const newProject = await createProject(projectName);
+          
+          // 2. Устанавливаем ID и имя нового проекта как активные
+          setActiveProjectId(newProject.id);
+          setActiveProjectName(newProject.name);
+
+          // 3. Сразу же сохраняем текущее состояние (nodes, edges, messages) для этого нового ID
+          await saveProjectState(newProject.id, { nodes, edges, messages });
+          
+          setIsDirty(false); // Проект сохранен, он больше не "грязный"
+          await loadProjects(); // Обновляем список проектов слева
+          alert(`Проект "${projectName}" успешно создан и сохранен!`);
+        }
+      }
     } catch (error) {
       console.error("Ошибка сохранения проекта:", error);
       alert("Не удалось сохранить проект.");
@@ -166,5 +189,5 @@ export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, mes
     }
   };
 
-  return { messages, isLoading, sendMessage, setMessages, promptSuggestions, saveCurrentProject};
+  return { messages, isLoading, sendMessage, saveCurrentProject, promptSuggestions };
 };

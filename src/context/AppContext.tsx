@@ -4,7 +4,7 @@ import { type Node, type Edge, type OnNodesChange, type OnEdgesChange, type Conn
 import type { Message } from '../types';
 import { useChat } from '../hooks/useChat';
 import { templateBlog, sandboxTasks } from '../components/config/templates';
-import { fetchProjects, createProject, fetchProjectById, saveProjectState } from '../api/projectService';
+import { fetchProjects, fetchProjectById } from '../api/projectService';
 import { useAuth } from './AuthContext';
 
 type SandboxTask = typeof sandboxTasks[0];
@@ -23,13 +23,15 @@ interface AppContextType {
   messages: Message[];
   isLoading: boolean;
   sendMessage: (text: string) => void;
-  startNewProject: (templateOrName?: 'empty' | 'blog' | string) => void;
+  startNewProject: (template?: 'empty' | 'blog') => void;
   startSandboxTask: (task: SandboxTask) => void;
   promptSuggestions: string[];
   projects: Project[]; 
   saveCurrentProject: () => void; 
   activeProjectName: string;
   loadProject: (projectId: number) => void;
+  isDirty: boolean; 
+  setIsDirty: React.Dispatch<React.SetStateAction<boolean>>; 
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -44,14 +46,34 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [activeProjectName, setActiveProjectName] = useState("Новый проект");
   const { isAuthenticated } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [isDirty, setIsDirty] = useState(false);
 
-// Функция для загрузки списка проектов
-  // const loadProjects = useCallback(async () => {
-  //   try {
-  //     const data = await fetchProjects();
-  //     setProjects(data);
-  //   } catch (error) { console.error("Ошибка загрузки проектов:", error); }
-  // }, []);
+  const { isLoading, sendMessage, promptSuggestions, saveCurrentProject } = useChat({ 
+        nodes, 
+        edges, 
+        activeProjectId,
+        setNodes,
+        setEdges,
+        messages, 
+        setMessages,
+        setIsDirty,
+        loadProjects: () => loadProjects(),
+        setActiveProjectId,
+        setActiveProjectName,
+    });
+
+  const onNodesChange: OnNodesChange = useCallback((changes) => {
+    setNodes((nds) => applyNodeChanges(changes, nds));
+    setIsDirty(true);
+  }, []);
+  const onEdgesChange: OnEdgesChange = useCallback((changes) => {
+    setEdges((eds) => applyEdgeChanges(changes, eds));
+    setIsDirty(true);
+  }, []);
+  const onConnect = useCallback((params: Connection | Edge) => {
+    setEdges((eds) => addEdgeHelper(params, eds));
+    setIsDirty(true);
+  }, []);
 
   const loadProjects = useCallback(async () => {
     if (!isAuthenticated) return; 
@@ -63,22 +85,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       console.error("Ошибка загрузки проектов:", error);
     }
   }, [isAuthenticated]);
-  
 
-  const onNodesChange: OnNodesChange = useCallback((changes) => setNodes((nds) => applyNodeChanges(changes, nds)), [setNodes]);
-  const onEdgesChange: OnEdgesChange = useCallback((changes) => setEdges((eds) => applyEdgeChanges(changes, eds)), [setEdges]);
-  const onConnect = useCallback((params: Connection | Edge) => setEdges((eds) => addEdgeHelper(params, eds)), [setEdges]);
-
-  const { isLoading, sendMessage, promptSuggestions, saveCurrentProject } = useChat({ 
-        nodes, 
-        edges, 
-        activeProjectId,
-        setNodes,
-        setEdges,
-        messages, // Передаем
-        setMessages // Передаем
-    });
-  
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
@@ -95,56 +102,74 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         // Найдем имя проекта для отображения
         const project = projects.find(p => p.id === projectId);
         if (project) setActiveProjectName(project.name);
+        setIsDirty(false);
       }
     } catch (error) { console.error("Ошибка загрузки проекта:", error); }
   }, [projects, setMessages]); // Зависимость от projects, чтобы найти имя
 
 
-   const startNewProject = async (templateOrName: 'empty' | 'blog' | string = 'empty') => {
-    let newProjectName = `Новый проект ${new Date().toLocaleTimeString()}`;
-    let templateType: 'empty' | 'blog' = 'empty';
+  //  const startNewProject = async (templateOrName: 'empty' | 'blog' | string = 'empty') => {
+  //   let newProjectName = `Новый проект ${new Date().toLocaleTimeString()}`;
+  //   let templateType: 'empty' | 'blog' = 'empty';
 
-    if (templateOrName === 'blog') {
-      newProjectName = `Новый проект (Блог)`;
-      templateType = 'blog';
-    } else if (templateOrName === 'empty') {
-      newProjectName = `Новый проект (Пустой)`;
+  //   if (templateOrName === 'blog') {
+  //     newProjectName = `Новый проект (Блог)`;
+  //     templateType = 'blog';
+  //   } else if (templateOrName === 'empty') {
+  //     newProjectName = `Новый проект (Пустой)`;
+  //   } else {
+  //     // Если передана строка, считаем это именем проекта
+  //     newProjectName = templateOrName;
+  //   }
+
+  //   try {
+  //     // Создаем проект в БД
+  //     const newProject = await createProject(newProjectName);
+      
+  //     // Обновляем состояние холста и чата в зависимости от шаблона
+  //     if (templateType === 'blog') {
+  //       setNodes(templateBlog.nodes);
+  //       setEdges(templateBlog.edges);
+  //       setMessages([{ id: Date.now(), text: `Начинаем работу с шаблона "Блог"! Что будем изменять?`, sender: 'ai' }]);
+  //     } else {
+  //       // Логика для пустого проекта
+  //       const initialNodes = [{ id: 'start-node', type: 'input', data: { label: 'Начните проектирование...' }, position: { x: 250, y: 5 } }];
+  //       setNodes(initialNodes);
+  //       setEdges([]);
+  //       setMessages([{ id: Date.now(), text: `Проект "${newProjectName}" создан! С чего начнем?`, sender: 'ai' }]);
+  //     }
+      
+  //     // Сразу сохраняем начальное состояние шаблона/пустого проекта в БД
+  //     if (templateType === 'blog') {
+  //       await saveProjectState(newProject.id, { nodes: templateBlog.nodes, edges: templateBlog.edges, messages: [{ id: Date.now(), text: `Начинаем работу с шаблона "Блог"!`, sender: 'ai' }] });
+  //     } else {
+  //       await saveProjectState(newProject.id, { nodes: [{ id: 'start-node', type: 'input', data: { label: 'Начните проектирование...' }, position: { x: 250, y: 5 } }], edges: [], messages: [{ id: Date.now(), text: `Проект создан!`, sender: 'ai' }] });
+  //     }
+
+  //     await loadProjects(); // Обновляем список проектов
+  //     setActiveProjectId(newProject.id); // Делаем новый проект активным
+  //     setActiveProjectName(newProject.name);
+
+  //   } catch (error) {
+  //     console.error("Ошибка создания проекта:", error);
+  //   }
+  // };
+
+  const startNewProject = (template: 'empty' | 'blog' = 'empty') => {
+    setActiveProjectId(null); // Самое важное: это теперь новый, несохраненный проект
+    
+    if (template === 'blog') {
+      setActiveProjectName("Новый проект (Блог)");
+      setNodes(templateBlog.nodes);
+      setEdges(templateBlog.edges);
+      setMessages([{ id: Date.now(), text: `Начинаем работу с шаблона "Блог"! Что будем изменять?`, sender: 'ai' }]);
     } else {
-      // Если передана строка, считаем это именем проекта
-      newProjectName = templateOrName;
+      setActiveProjectName("Новый проект (Пустой)");
+      setNodes([{ id: 'start-node', type: 'input', data: { label: 'Начните проектирование...' }, position: { x: 250, y: 5 } }]);
+      setEdges([]);
+      setMessages([{ id: Date.now(), text: "Начинаем новый проект! С чего начнем?", sender: 'ai' }]);
     }
-
-    try {
-      // Создаем проект в БД
-      const newProject = await createProject(newProjectName);
-      
-      // Обновляем состояние холста и чата в зависимости от шаблона
-      if (templateType === 'blog') {
-        setNodes(templateBlog.nodes);
-        setEdges(templateBlog.edges);
-        setMessages([{ id: Date.now(), text: `Начинаем работу с шаблона "Блог"! Что будем изменять?`, sender: 'ai' }]);
-      } else {
-        // Логика для пустого проекта
-        const initialNodes = [{ id: 'start-node', type: 'input', data: { label: 'Начните проектирование...' }, position: { x: 250, y: 5 } }];
-        setNodes(initialNodes);
-        setEdges([]);
-        setMessages([{ id: Date.now(), text: `Проект "${newProjectName}" создан! С чего начнем?`, sender: 'ai' }]);
-      }
-      
-      // Сразу сохраняем начальное состояние шаблона/пустого проекта в БД
-      if (templateType === 'blog') {
-        await saveProjectState(newProject.id, { nodes: templateBlog.nodes, edges: templateBlog.edges, messages: [{ id: Date.now(), text: `Начинаем работу с шаблона "Блог"!`, sender: 'ai' }] });
-      } else {
-        await saveProjectState(newProject.id, { nodes: [{ id: 'start-node', type: 'input', data: { label: 'Начните проектирование...' }, position: { x: 250, y: 5 } }], edges: [], messages: [{ id: Date.now(), text: `Проект создан!`, sender: 'ai' }] });
-      }
-
-      await loadProjects(); // Обновляем список проектов
-      setActiveProjectId(newProject.id); // Делаем новый проект активным
-      setActiveProjectName(newProject.name);
-
-    } catch (error) {
-      console.error("Ошибка создания проекта:", error);
-    }
+    setIsDirty(true); // Новый проект по определению "грязный", т.к. не сохранен
   };
   
   const startSandboxTask = (task: SandboxTask) => {
@@ -170,7 +195,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     projects, 
     saveCurrentProject, 
     loadProject,
-    activeProjectName
+    activeProjectName,
+    isDirty,
+    setIsDirty
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
