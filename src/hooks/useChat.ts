@@ -152,15 +152,16 @@ export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, mes
     }
   };
 
-   const saveCurrentProject = async () => {
+    const saveCurrentProject = async (): Promise<boolean> => {
     setIsLoading(true);
     try {
       if (activeProjectId) {
         // --- СЦЕНАРИЙ 1: ОБНОВЛЕНИЕ СУЩЕСТВУЮЩЕГО ПРОЕКТА ---
         await saveProjectState(activeProjectId, { nodes, edges, messages });
         setIsDirty(false);
-        await loadProjects(); // Обновляем список, чтобы видеть новую дату
+        await loadProjects(); 
         alert("Проект успешно обновлен!");
+        return true;
       } else {
         // --- СЦЕНАРИЙ 2: СОХРАНЕНИЕ НОВОГО ПРОЕКТА ---
         const projectName = window.prompt("Введите название нового проекта:", "Новый проект");
@@ -180,11 +181,15 @@ export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, mes
           setIsDirty(false); // Проект сохранен
           await loadProjects(); // Обновляем список проектов слева
           alert(`Проект "${projectName}" успешно создан и сохранен!`);
+          return true;
+        } else {
+          return false; // Пользователь отменил ввод имени
         }
       }
     } catch (error) {
       console.error("Ошибка сохранения проекта:", error);
       alert("Не удалось сохранить проект.");
+      return false;
     } finally {
       setIsLoading(false);
     }

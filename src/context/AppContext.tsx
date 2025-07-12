@@ -19,7 +19,9 @@ type ConfirmationStateType = {
   title: string;
   description: string;
   onConfirm: () => void;
-  onSaveAndConfirm?: () => void; // Делаем опциональным
+  onSaveAndConfirm?: () => Promise<void>; // Должен быть async, так как сохранение асинхронное
+  confirmText?: string;
+  saveAndConfirmText?: string;
 };
 
 interface AppContextType {
@@ -42,7 +44,7 @@ interface AppContextType {
   setIsDirty: React.Dispatch<React.SetStateAction<boolean>>; 
   confirmationState: ConfirmationStateType; 
   setConfirmationState: React.Dispatch<React.SetStateAction<ConfirmationStateType>>; 
-  navigateWithDirtyCheck: (action: () => void) => void;
+  navigateWithDirtyCheck: (action: () => void, actionName?: string) => void; 
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -58,11 +60,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { isAuthenticated } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isDirty, setIsDirty] = useState(false);
-  const [confirmationState, setConfirmationState] = useState({
+  const [confirmationState, setConfirmationState] = useState<ConfirmationStateType>({
     isOpen: false,
     title: '',
     description: '',
-    onConfirm: () => {}, 
+    onConfirm: () => {},
   });
   
 
@@ -81,12 +83,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     });
 
   const onNodesChange: OnNodesChange = useCallback((changes) => {
+    if (changes.some(c => c.type === 'position' && c.dragging === false)) {
+      setIsDirty(true);
+    }
     setNodes((nds) => applyNodeChanges(changes, nds));
-    setIsDirty(true);
   }, []);
   const onEdgesChange: OnEdgesChange = useCallback((changes) => {
+    if (changes.some(c => c.type === 'add' || c.type === 'remove')) {
+      setIsDirty(true);
+    }
     setEdges((eds) => applyEdgeChanges(changes, eds));
-    setIsDirty(true);
   }, []);
   const onConnect = useCallback((params: Connection | Edge) => {
     setEdges((eds) => addEdgeHelper(params, eds));
@@ -123,7 +129,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setIsDirty(false);
       }
     } catch (error) { console.error("Ошибка загрузки проекта:", error); }
-  }, [projects, setMessages, setNodes, setEdges]); 
+  }, [projects, setMessages, setNodes, setEdges, setIsDirty]); 
 
 
   //  const startNewProject = async (templateOrName: 'empty' | 'blog' | string = 'empty') => {
@@ -198,17 +204,28 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setMessages([{ id: Date.now(), text: task.startMessage, sender: 'ai' }]);
   };
 
-  const navigateWithDirtyCheck = (action: () => void) => {
+  const navigateWithDirtyCheck = (action: () => void, actionName: string = 'Продолжить') => {
     if (isDirty) {
-      // Если есть несохраненные изменения, открываем модальное окно
       setConfirmationState({
         isOpen: true,
         title: "Несохраненные изменения",
-        description: "У вас есть несохраненные изменения. Вы уверены, что хотите продолжить? Вся несохраненная работа будет потеряна.",
+        description: "У вас есть несохраненные изменения. Вы уверены, что хотите продолжить?",
+        // Действие для кнопки "Не сохранять"
         onConfirm: () => {
-          action(); // Выполняем исходное действие (например, logout)
-          setConfirmationState({ ...confirmationState, isOpen: false });
+          action();
+          setConfirmationState(prev => ({ ...prev, isOpen: false }));
         },
+        // НОВАЯ ЛОГИКА для кнопки "Сохранить и ..."
+        onSaveAndConfirm: async () => {
+          const success = await saveCurrentProject(); // Сначала сохраняем
+          if (success) {
+            action(); // Выполняем действие только если сохранение прошло успешно
+          }
+          setConfirmationState(prev => ({ ...prev, isOpen: false }));
+        },
+        // Динамические тексты кнопок
+        confirmText: `${actionName} без сохранения`,
+        saveAndConfirmText: `Сохранить и ${actionName.toLowerCase()}`,
       });
     } else {
       // Если все чисто, просто выполняем действие

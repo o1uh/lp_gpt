@@ -21,7 +21,7 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
 
   const handleLoadProject = (projectId: number) => {
     // Оборачиваем loadProject в нашу проверку
-    navigateWithDirtyCheck(() => loadProject(projectId));
+    navigateWithDirtyCheck(() => loadProject(projectId), "Перейти к проекту");
   };
   
   // Функция для стилизации кнопок-вкладок

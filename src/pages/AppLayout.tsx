@@ -38,9 +38,11 @@ export const AppLayout = () => {
         isOpen={confirmationState.isOpen}
         onClose={() => setConfirmationState({ ...confirmationState, isOpen: false })}
         onConfirm={confirmationState.onConfirm}
+        onSaveAndConfirm={confirmationState.onSaveAndConfirm} // <-- Передаем новую функцию
         title={confirmationState.title}
         description={confirmationState.description}
-        confirmText="Да, выйти без сохранения"
+        confirmText={confirmationState.confirmText} 
+        saveAndConfirmText={confirmationState.saveAndConfirmText} 
         cancelText="Вернуться"
       />
     </div>

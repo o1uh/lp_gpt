@@ -7,7 +7,7 @@ export const Sidebar = () => {
   const { saveCurrentProject, navigateWithDirtyCheck } = useAppContext(); // Получаем функцию сохранения
   const handleLogout = () => {
     // Оборачиваем logout в нашу проверку
-    navigateWithDirtyCheck(() => logout());
+    navigateWithDirtyCheck(() => logout(), "Выйти");
   };
 
   return (
