@@ -143,53 +143,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [projects, setMessages, setNodes, setEdges, setIsDirty]); 
 
 
-  //  const startNewProject = async (templateOrName: 'empty' | 'blog' | string = 'empty') => {
-  //   let newProjectName = `Новый проект ${new Date().toLocaleTimeString()}`;
-  //   let templateType: 'empty' | 'blog' = 'empty';
-
-  //   if (templateOrName === 'blog') {
-  //     newProjectName = `Новый проект (Блог)`;
-  //     templateType = 'blog';
-  //   } else if (templateOrName === 'empty') {
-  //     newProjectName = `Новый проект (Пустой)`;
-  //   } else {
-  //     // Если передана строка, считаем это именем проекта
-  //     newProjectName = templateOrName;
-  //   }
-
-  //   try {
-  //     // Создаем проект в БД
-  //     const newProject = await createProject(newProjectName);
-      
-  //     // Обновляем состояние холста и чата в зависимости от шаблона
-  //     if (templateType === 'blog') {
-  //       setNodes(templateBlog.nodes);
-  //       setEdges(templateBlog.edges);
-  //       setMessages([{ id: Date.now(), text: `Начинаем работу с шаблона "Блог"! Что будем изменять?`, sender: 'ai' }]);
-  //     } else {
-  //       // Логика для пустого проекта
-  //       const initialNodes = [{ id: 'start-node', type: 'input', data: { label: 'Начните проектирование...' }, position: { x: 250, y: 5 } }];
-  //       setNodes(initialNodes);
-  //       setEdges([]);
-  //       setMessages([{ id: Date.now(), text: `Проект "${newProjectName}" создан! С чего начнем?`, sender: 'ai' }]);
-  //     }
-      
-  //     // Сразу сохраняем начальное состояние шаблона/пустого проекта в БД
-  //     if (templateType === 'blog') {
-  //       await saveProjectState(newProject.id, { nodes: templateBlog.nodes, edges: templateBlog.edges, messages: [{ id: Date.now(), text: `Начинаем работу с шаблона "Блог"!`, sender: 'ai' }] });
-  //     } else {
-  //       await saveProjectState(newProject.id, { nodes: [{ id: 'start-node', type: 'input', data: { label: 'Начните проектирование...' }, position: { x: 250, y: 5 } }], edges: [], messages: [{ id: Date.now(), text: `Проект создан!`, sender: 'ai' }] });
-  //     }
-
-  //     await loadProjects(); // Обновляем список проектов
-  //     setActiveProjectId(newProject.id); // Делаем новый проект активным
-  //     setActiveProjectName(newProject.name);
-
-  //   } catch (error) {
-  //     console.error("Ошибка создания проекта:", error);
-  //   }
-  // };
-
   const startNewProject = (template: 'empty' | 'blog' = 'empty') => {
     setActiveProjectId(null); // Самое важное: это теперь новый, несохраненный проект
     
@@ -223,6 +176,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         description: "У вас есть несохраненные изменения. Вы уверены, что хотите продолжить?",
         // Действие для кнопки "Не сохранять"
         onConfirm: () => {
+          setIsDirty(false);
           action();
           setConfirmationState(prev => ({ ...prev, isOpen: false }));
         },
@@ -230,6 +184,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         onSaveAndConfirm: async () => {
           const success = await saveCurrentProject(); // Сначала сохраняем
           if (success) {
+            setIsDirty(false);
             action(); // Выполняем действие только если сохранение прошло успешно
           }
           setConfirmationState(prev => ({ ...prev, isOpen: false }));

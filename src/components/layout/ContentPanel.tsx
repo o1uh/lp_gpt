@@ -23,6 +23,23 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
     // Оборачиваем loadProject в нашу проверку
     navigateWithDirtyCheck(() => loadProject(projectId), "Перейти к проекту");
   };
+
+  const handleOpenCreateModal = () => {
+    // Эта функция будет вызываться при клике на "+"
+    // Она оборачивает открытие модального окна в проверку
+    navigateWithDirtyCheck(
+      () => {
+        // Это действие выполнится, если все "чисто" или пользователь согласился продолжить
+        setIsModalOpen(true);
+      },
+      "Создать новый проект"
+    );
+  };
+
+  // Оборачиваем смену вкладки в проверку
+  const handleTabChange = (tab: Tab) => {
+    navigateWithDirtyCheck(() => onTabChange(tab), "Переключить режим");
+  };
   
   // Функция для стилизации кнопок-вкладок
   const getTabClassName = (tabName: Tab) => {
@@ -64,28 +81,28 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
     <aside className="w-64 bg-gray-800/50 p-4 flex flex-col">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-lg font-bold">Архитектура</h1>
-        <button onClick={() => setIsModalOpen(true)} className="p-1 rounded hover:bg-gray-700" title="Создать новый проект">
+        <button onClick={handleOpenCreateModal} className="p-1 rounded hover:bg-gray-700" title="Создать новый проект">
           <Plus size={20} />
         </button>
       </div>
 
       <div className="flex justify-around items-center mb-4 border-b border-gray-700 pb-2">
         <button 
-          onClick={() => onTabChange('assistant')} 
+          onClick={() => handleTabChange('assistant')} 
           className={getTabClassName('assistant')}
           title="Ассистент"
         >
           <MessageSquare size={20} />
         </button>
         <button 
-          onClick={() => onTabChange('teacher')} 
+          onClick={() => handleTabChange('teacher')} 
           className={getTabClassName('teacher')}
           title="Обучение"
         >
           <BookOpen size={20} />
         </button>
         <button 
-          onClick={() => onTabChange('examiner')} 
+          onClick={() => handleTabChange('teacher')} 
           className={getTabClassName('examiner')}
           title="Тесты"
         >
