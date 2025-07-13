@@ -25,7 +25,7 @@ interface UseChatProps {
   setSaveModalState: React.Dispatch<React.SetStateAction<{ isOpen: boolean; onSave: (name: string) => void; }>>;
 }
 
-export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, messages, setMessages, setIsDirty, loadProjects, setActiveProjectId, setActiveProjectName, setSaveModalState  }: UseChatProps) => {
+export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, messages, setMessages, setIsDirty, loadProjects, setActiveProjectId, setActiveProjectName, setSaveModalState }: UseChatProps) => {
   const [isLoading, setIsLoading] = useState(false);
   
   const [promptSuggestions, setPromptSuggestions] = useState<string[]>([]);
@@ -158,7 +158,7 @@ export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, mes
     try {
       if (activeProjectId) {
         // --- СЦЕНАРИЙ 1: ОБНОВЛЕНИЕ СУЩЕСТВУЮЩЕГО ПРОЕКТА ---
-        await saveProjectState(activeProjectId, { nodes, edges, messages });
+        await saveProjectState(activeProjectId, { nodes, edges, messages, suggestions: promptSuggestions });
         setIsDirty(false);
         await loadProjects(); 
         alert("Проект успешно обновлен!");
@@ -178,7 +178,7 @@ export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, mes
               // Не нужно здесь снова вызывать setIsLoading, он уже включен
               try {
                 const newProject = await createProject(projectName);
-                await saveProjectState(newProject.id, { nodes, edges, messages });
+                await saveProjectState(newProject.id, { nodes, edges, messages, suggestions: promptSuggestions });
                 
                 setActiveProjectId(newProject.id);
                 setActiveProjectName(newProject.name);
@@ -210,5 +210,5 @@ export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, mes
     }
   };
 
-  return { messages, isLoading, sendMessage, saveCurrentProject, promptSuggestions };
+  return { messages, isLoading, sendMessage, saveCurrentProject, promptSuggestions,  setPromptSuggestions, };
 };

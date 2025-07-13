@@ -56,7 +56,7 @@ router.post('/', (req, res) => {
 router.put('/:id', (req, res) => {
     const projectId = req.params.id;
     const userId = req.user.userId;
-    const { nodes, edges, messages } = req.body;
+    const { nodes, edges, messages, suggestions } = req.body;
     
     // Проверяем, что проект принадлежит текущему пользователю
     const checkOwnerSql = 'SELECT user_id FROM projects WHERE id = ?';
@@ -69,8 +69,8 @@ router.put('/:id', (req, res) => {
         const updateProjectSql = 'UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ?';
         db.run(updateProjectSql, [projectId]);
         
-        const stateSql = 'INSERT INTO project_states (project_id, nodes_json, edges_json, messages_json) VALUES (?, ?, ?, ?)';
-        db.run(stateSql, [projectId, JSON.stringify(nodes), JSON.stringify(edges), JSON.stringify(messages)], function(err) {
+        const stateSql = 'INSERT INTO project_states (project_id, nodes_json, edges_json, messages_json, suggestions_json) VALUES (?, ?, ?, ?, ?)';
+        db.run(stateSql, [projectId, JSON.stringify(nodes), JSON.stringify(edges), JSON.stringify(messages), JSON.stringify(suggestions)], function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.status(200).json({ message: 'Проект успешно сохранен' });
         });

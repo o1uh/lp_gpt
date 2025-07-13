@@ -78,7 +78,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     onSave: () => {}, // Пустая функция по умолчанию
   });
 
-  const { isLoading, sendMessage, promptSuggestions, saveCurrentProject } = useChat({ 
+  const { isLoading, sendMessage, promptSuggestions, setPromptSuggestions, saveCurrentProject } = useChat({ 
         nodes, 
         edges, 
         activeProjectId,
@@ -133,6 +133,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setNodes(JSON.parse(data.nodes_json || '[]'));
         setEdges(JSON.parse(data.edges_json || '[]'));
         setMessages(JSON.parse(data.messages_json || '[]'));
+        setPromptSuggestions(JSON.parse(data.suggestions_json || '[]'));
         setActiveProjectId(projectId);
         // Найдем имя проекта для отображения
         const project = projects.find(p => p.id === projectId);
@@ -140,12 +141,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setIsDirty(false);
       }
     } catch (error) { console.error("Ошибка загрузки проекта:", error); }
-  }, [projects, setMessages, setNodes, setEdges, setIsDirty]); 
+  }, [projects, setMessages, setNodes, setEdges, setIsDirty, setPromptSuggestions]); 
 
 
   const startNewProject = (template: 'empty' | 'blog' = 'empty') => {
     setActiveProjectId(null); // Самое важное: это теперь новый, несохраненный проект
-    
+    setPromptSuggestions([]);
     if (template === 'blog') {
       setActiveProjectName("Новый проект (Блог)");
       setNodes(templateBlog.nodes);
@@ -156,6 +157,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setNodes([{ id: 'start-node', type: 'input', data: { label: 'Начните проектирование...' }, position: { x: 250, y: 5 } }]);
       setEdges([]);
       setMessages([{ id: Date.now(), text: "Начинаем новый проект! С чего начнем?", sender: 'ai' }]);
+
+      const initialSuggestions = sandboxTasks.map(task => task.name);
+      initialSuggestions.push("Начать с чистого листа");
+      setPromptSuggestions(initialSuggestions);
     }
     setIsDirty(true); // Новый проект по определению "грязный", т.к. не сохранен
   };
@@ -222,6 +227,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     navigateWithDirtyCheck,
     saveModalState,
     setSaveModalState,
+    setPromptSuggestions
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
