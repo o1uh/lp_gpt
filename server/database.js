@@ -52,6 +52,7 @@ const createTables = () => {
         nodes_json TEXT,
         edges_json TEXT,
         messages_json TEXT,
+        suggestions_json TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (project_id) REFERENCES projects(id)
       )

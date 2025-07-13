@@ -4,7 +4,11 @@ import { useAppContext } from '../../context/AppContext'; // Импортиру�
 
 export const Sidebar = () => {
   const { logout } = useAuth();
-  const { saveCurrentProject } = useAppContext(); // Получаем функцию сохранения
+  const { saveCurrentProject, navigateWithDirtyCheck } = useAppContext(); // Получаем функцию сохранения
+  const handleLogout = () => {
+    // Оборачиваем logout в нашу проверку
+    navigateWithDirtyCheck(() => logout(), "Выйти");
+  };
 
   return (
     <nav className="w-16 bg-gray-800 p-2 flex flex-col items-center justify-between">
@@ -28,7 +32,7 @@ export const Sidebar = () => {
         </button>
         {/* 4. Добавляем кнопку выхода */}
         <button 
-          onClick={logout} 
+          onClick={handleLogout} 
           className="p-2 rounded-lg text-red-400 hover:bg-red-500 hover:text-white transition-colors" 
           title="Выйти"
         >

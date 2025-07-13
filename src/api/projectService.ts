@@ -8,6 +8,7 @@ interface ProjectStateData {
   nodes: Node[];
   edges: Edge[];
   messages: Message[];
+  suggestions: string[];
 }
 
 

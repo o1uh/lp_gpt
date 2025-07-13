@@ -57,14 +57,23 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => 
         <h2 className="text-xl font-bold truncate">{activeProjectName}</h2>
       </div>
 
-      <div className="flex-grow bg-gray-800 rounded-lg p-4 space-y-4 overflow-y-auto">
-        {messages.map(message => (
-          <ChatMessage 
-            key={message.id} 
-            message={message} 
-            isPanelVisible={isPanelVisible}
-          />
-        ))}
+      <div className="flex-grow bg-gray-800 rounded-lg p-4 space-y-4 overflow-y-auto flex flex-col">
+        {/* НОВАЯ ЛОГИКА: Показываем заглушку, если нет сообщений */}
+        {messages.length === 0 ? (
+          <div className="m-auto text-center text-gray-500">
+            <p className="text-lg">С чего начнём?</p>
+            <p className="text-sm">Выберите подсказку ниже или задайте свой вопрос</p>
+          </div>
+        ) : (
+          // Иначе показываем сообщения
+          messages.map(message => (
+            <ChatMessage 
+              key={message.id} 
+              message={message} 
+              isPanelVisible={isPanelVisible}
+            />
+          ))
+        )}
         {isLoading && (
           <div className="flex justify-start">
             <div className="bg-gray-600 p-3 rounded-lg flex items-center gap-x-2">

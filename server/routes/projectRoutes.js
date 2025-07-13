@@ -39,18 +39,16 @@ router.post('/', (req, res) => {
   const userId = req.user.userId;
 
   const projectSql = 'INSERT INTO projects (user_id, name) VALUES (?, ?)';
+  
+  // Просто создаем запись в таблице `projects` и возвращаем ID
   db.run(projectSql, [userId, name || 'Новый проект'], function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
     const projectId = this.lastID;
-    const initialNodes = JSON.stringify([{ id: 'start-node', type: 'input', data: { label: 'Начните проектирование...' }, position: { x: 250, y: 5 } }]);
-    const initialMessages = JSON.stringify([{ id: Date.now(), text: `Проект "${name || 'Новый проект'}" создан! С чего начнем?`, sender: 'ai' }]);
-    
-    const stateSql = 'INSERT INTO project_states (project_id, nodes_json, edges_json, messages_json) VALUES (?, ?, ?, ?)';
-    db.run(stateSql, [projectId, initialNodes, '[]', initialMessages], (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.status(201).json({ id: projectId, name: name || 'Новый проект' });
-    });
+    // НЕ создаем здесь начальное состояние. Просто отвечаем.
+    res.status(201).json({ id: projectId, name: name || 'Новый проект' });
   });
 });
 
@@ -58,7 +56,7 @@ router.post('/', (req, res) => {
 router.put('/:id', (req, res) => {
     const projectId = req.params.id;
     const userId = req.user.userId;
-    const { nodes, edges, messages } = req.body;
+    const { nodes, edges, messages, suggestions } = req.body;
     
     // Проверяем, что проект принадлежит текущему пользователю
     const checkOwnerSql = 'SELECT user_id FROM projects WHERE id = ?';
@@ -71,8 +69,8 @@ router.put('/:id', (req, res) => {
         const updateProjectSql = 'UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ?';
         db.run(updateProjectSql, [projectId]);
         
-        const stateSql = 'INSERT INTO project_states (project_id, nodes_json, edges_json, messages_json) VALUES (?, ?, ?, ?)';
-        db.run(stateSql, [projectId, JSON.stringify(nodes), JSON.stringify(edges), JSON.stringify(messages)], function(err) {
+        const stateSql = 'INSERT INTO project_states (project_id, nodes_json, edges_json, messages_json, suggestions_json) VALUES (?, ?, ?, ?, ?)';
+        db.run(stateSql, [projectId, JSON.stringify(nodes), JSON.stringify(edges), JSON.stringify(messages), JSON.stringify(suggestions)], function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.status(200).json({ message: 'Проект успешно сохранен' });
         });
