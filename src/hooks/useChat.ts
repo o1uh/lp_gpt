@@ -1,9 +1,10 @@
-import { useState} from 'react';
+import { useState, useEffect} from 'react';
 import { type Node, type Edge } from 'reactflow';
 import  type { Message } from '../types';
 import { geminiModel } from '../api/gemini';
 import { saveProjectState } from '../api/projectService';
 import { createProject } from '../api/projectService';
+import { sandboxTasks } from '../components/config/templates';
 
 type HistoryItem = {
   role: 'user' | 'model';
@@ -29,7 +30,18 @@ export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, mes
   const [isLoading, setIsLoading] = useState(false);
   
   const [promptSuggestions, setPromptSuggestions] = useState<string[]>([]);
-  
+
+  useEffect(() => {
+    // Эта логика теперь идеально работает для нашего случая
+    const hasUserInteracted = messages.some(m => m.sender === 'user');
+    if (!hasUserInteracted && messages.length === 0) { // Проверяем, что чат действительно пуст
+      const initialSuggestions = sandboxTasks.map(task => task.name);
+      setPromptSuggestions(initialSuggestions);
+    } else if (hasUserInteracted) {
+      // Подсказки будут скрываться только после первого сообщения пользователя
+    }
+  }, [messages, setPromptSuggestions]);
+
   const sendMessage = async (text: string) => {
     setIsDirty(true);
     const userMessage: Message = { id: Date.now(), text, sender: 'user' };

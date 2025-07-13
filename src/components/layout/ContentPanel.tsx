@@ -16,7 +16,7 @@ interface ContentPanelProps {
 
 
 export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
-  const { startNewProject, projects, loadProject, navigateWithDirtyCheck } = useAppContext(); // Получаем реальные проекты
+  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId } = useAppContext(); // Получаем реальные проекты
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleLoadProject = (projectId: number) => {
@@ -58,13 +58,26 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
           <>
             <h2 className="text-xs font-bold text-gray-400 uppercase mb-2">Диалоги</h2>
             <ul className="space-y-2">
-              {projects.map((project: Project) => (
-                <li key={project.id}>
-                  <button onClick={() => handleLoadProject(project.id)} className="w-full text-left flex items-center gap-x-2 p-2 rounded text-gray-300 hover:bg-gray-700 hover:text-white">
-                    <Hash size={16} /> <span>{project.name}</span>
-                  </button>
-                </li>
-              ))}
+              {projects.map((project: Project) => {
+                // 2. Проверяем, является ли текущий проект в списке активным
+                const isActive = project.id === activeProjectId;
+                
+                return (
+                  <li key={project.id}>
+                    <button 
+                      onClick={() => handleLoadProject(project.id)} 
+                      // 3. Добавляем классы в зависимости от isActive
+                      className={`w-full text-left flex items-center gap-x-2 p-2 rounded transition-colors ${
+                        isActive
+                          ? 'bg-blue-600/20 text-white' // Стили для активного элемента
+                          : 'text-gray-300 hover:bg-gray-700 hover:text-white' // Стили для неактивного
+                      }`}
+                    >
+                      <Hash size={16} /> <span>{project.name}</span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </>
         );
@@ -102,7 +115,7 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
           <BookOpen size={20} />
         </button>
         <button 
-          onClick={() => handleTabChange('teacher')} 
+          onClick={() => handleTabChange('examiner')} 
           className={getTabClassName('examiner')}
           title="Тесты"
         >

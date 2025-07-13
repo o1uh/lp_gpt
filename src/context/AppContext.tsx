@@ -52,6 +52,7 @@ interface AppContextType {
   navigateWithDirtyCheck: (action: () => void, actionName?: string) => void; 
   saveModalState: SaveModalStateType; 
   setSaveModalState: React.Dispatch<React.SetStateAction<SaveModalStateType>>; 
+  activeProjectId: number | null;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -147,22 +148,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const startNewProject = (template: 'empty' | 'blog' = 'empty') => {
     setActiveProjectId(null); // Самое важное: это теперь новый, несохраненный проект
     setPromptSuggestions([]);
+    setIsDirty(true); // Новый проект по определению "грязный", т.к. не сохранен
     if (template === 'blog') {
       setActiveProjectName("Новый проект (Блог)");
       setNodes(templateBlog.nodes);
       setEdges(templateBlog.edges);
       setMessages([{ id: Date.now(), text: `Начинаем работу с шаблона "Блог"! Что будем изменять?`, sender: 'ai' }]);
     } else {
-      setActiveProjectName("Новый проект (Пустой)");
+      setActiveProjectName("Новый проект");
       setNodes([{ id: 'start-node', type: 'input', data: { label: 'Начните проектирование...' }, position: { x: 250, y: 5 } }]);
       setEdges([]);
-      setMessages([{ id: Date.now(), text: "Начинаем новый проект! С чего начнем?", sender: 'ai' }]);
+      setMessages([]);
 
       const initialSuggestions = sandboxTasks.map(task => task.name);
       initialSuggestions.push("Начать с чистого листа");
       setPromptSuggestions(initialSuggestions);
+      setIsDirty(false); // Пустой проект незачем контролировать
     }
-    setIsDirty(true); // Новый проект по определению "грязный", т.к. не сохранен
   };
   
   const startSandboxTask = (task: SandboxTask) => {
@@ -227,12 +229,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     navigateWithDirtyCheck,
     saveModalState,
     setSaveModalState,
-    setPromptSuggestions
+    setPromptSuggestions,
+    activeProjectId,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAppContext = () => {
   const context = useContext(AppContext);
   if (context === undefined) {
