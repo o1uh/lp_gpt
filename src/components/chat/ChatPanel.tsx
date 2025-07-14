@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { PanelLeftClose, PanelLeftOpen, Send } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, Send, Pencil, Trash2 } from 'lucide-react';
 import TextareaAutosize from 'react-textarea-autosize';
 import { useAppContext } from '../../context/AppContext';
 import { ChatMessage } from './ChatMessage';
@@ -11,7 +11,7 @@ interface ChatPanelProps {
 }
 
 export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => {
-  const { messages, sendMessage, isLoading, promptSuggestions, activeProjectName } = useAppContext();
+  const { messages, sendMessage, isLoading, promptSuggestions, activeProjectName, activeProjectId, renameCurrentProject, deleteCurrentProject  } = useAppContext();
   const [inputValue, setInputValue] = useState('');
   const chatEndRef = useRef<null | HTMLDivElement>(null);
 
@@ -55,6 +55,16 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => 
           {isPanelVisible ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
         </button>
         <h2 className="text-xl font-bold truncate">{activeProjectName}</h2>
+        {activeProjectId && (
+          <div className="flex items-center gap-x-2 ml-auto">
+            <button onClick={renameCurrentProject} className="p-1 text-gray-400 hover:text-white" title="Переименовать проект">
+              <Pencil size={16} />
+            </button>
+            <button onClick={deleteCurrentProject} className="p-1 text-red-500 hover:text-red-400" title="Удалить проект">
+              <Trash2 size={16} />
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex-grow bg-gray-800 rounded-lg p-4 space-y-4 overflow-y-auto flex flex-col">

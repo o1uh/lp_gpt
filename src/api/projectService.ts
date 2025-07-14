@@ -64,3 +64,28 @@ export const saveProjectState = async (projectId: number, data: ProjectStateData
     }
     return response.json();
 };
+
+// Функция для переименования проекта
+export const renameProject = async (projectId: number, newName: string) => {
+  const response = await fetch(`${API_URL}/${projectId}/rename`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ newName }),
+  });
+  if (!response.ok) {
+    throw new Error('Не удалось переименовать проект');
+  }
+  return response.json();
+};
+
+// Функция для удаления проекта
+export const deleteProject = async (projectId: number) => {
+  const response = await fetch(`${API_URL}/${projectId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error('Не удалось удалить проект');
+  }
+  return response.json();
+};

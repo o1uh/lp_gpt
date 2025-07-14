@@ -4,7 +4,7 @@ import { type Node, type Edge, type OnNodesChange, type OnEdgesChange, type Conn
 import type { Message } from '../types';
 import { useChat } from '../hooks/useChat';
 import { templateBlog, sandboxTasks } from '../components/config/templates';
-import { fetchProjects, fetchProjectById } from '../api/projectService';
+import { fetchProjects, fetchProjectById, renameProject, deleteProject } from '../api/projectService';
 import { useAuth } from './AuthContext';
 
 type SandboxTask = typeof sandboxTasks[0];
@@ -53,6 +53,8 @@ interface AppContextType {
   saveModalState: SaveModalStateType; 
   setSaveModalState: React.Dispatch<React.SetStateAction<SaveModalStateType>>; 
   activeProjectId: number | null;
+  renameCurrentProject: () => void;
+  deleteCurrentProject: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -205,6 +207,52 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       action();
     }
   };
+  const renameCurrentProject = () => {
+    if (!activeProjectId) return;
+    
+    // Используем наше универсальное модальное окно для сохранения
+    setSaveModalState({
+      isOpen: true,
+      onSave: async (newName) => {
+        try {
+          await renameProject(activeProjectId, newName);
+          await loadProjects(); // Обновляем список
+          setActiveProjectName(newName); // Обновляем заголовок
+          alert("Проект переименован!");
+        } catch (error) {
+          console.error(error);
+          alert("Ошибка переименования.");
+        }
+      },
+    });
+  };
+
+  // Функция для удаления
+  const deleteCurrentProject = () => {
+    if (!activeProjectId) return;
+    
+    // Используем наше универсальное окно подтверждения
+    setConfirmationState({
+      isOpen: true,
+      title: "Удалить проект?",
+      description: `Вы уверены, что хотите удалить проект "${activeProjectName}"? Это действие необратимо.`,
+      confirmText: "Да, удалить",
+      onConfirm: async () => {
+        try {
+          await deleteProject(activeProjectId);
+          await loadProjects();
+          // Сбрасываем до состояния нового проекта
+          startNewProject('empty');
+          alert("Проект удален.");
+        } catch (error) {
+          console.error(error);
+          alert("Ошибка удаления.");
+        }
+        setConfirmationState(prev => ({...prev, isOpen: false}));
+      },
+      onSaveAndConfirm: undefined, 
+    });
+  };
 
   const value = {
     nodes,
@@ -231,6 +279,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setSaveModalState,
     setPromptSuggestions,
     activeProjectId,
+    renameCurrentProject,
+    deleteCurrentProject,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

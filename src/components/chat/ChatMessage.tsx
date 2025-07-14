@@ -18,6 +18,7 @@ export const ChatMessage = ({ message, isPanelVisible }: ChatMessageProps) => {
       >
         <ReactMarkdown
           components={{
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             p: ({ node: _node, ...props }) => <p {...props} />
           }}
         >
