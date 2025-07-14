@@ -12,26 +12,26 @@ router.get('/', (req, res) => {
   });
 });
 
-// GET /api/projects/:id - Получить последнее состояние проекта
-router.get('/:id', (req, res) => {
-  const projectId = req.params.id;
-  const userId = req.user.userId;
-  // Проверяем, что проект принадлежит текущему пользователю
-  const checkOwnerSql = 'SELECT user_id FROM projects WHERE id = ?';
-  db.get(checkOwnerSql, [projectId], (err, project) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (!project || project.user_id !== userId) {
-      return res.status(403).json({ error: "Доступ запрещен" });
-    }
+// // GET /api/projects/:id - Получить последнее состояние проекта
+// router.get('/:id', (req, res) => {
+//   const projectId = req.params.id;
+//   const userId = req.user.userId;
+//   // Проверяем, что проект принадлежит текущему пользователю
+//   const checkOwnerSql = 'SELECT user_id FROM projects WHERE id = ?';
+//   db.get(checkOwnerSql, [projectId], (err, project) => {
+//     if (err) return res.status(500).json({ error: err.message });
+//     if (!project || project.user_id !== userId) {
+//       return res.status(403).json({ error: "Доступ запрещен" });
+//     }
 
-    // Если все в порядке, получаем последнее состояние
-    const sql = `SELECT * FROM project_states WHERE project_id = ? ORDER BY created_at DESC LIMIT 1`;
-    db.get(sql, [projectId], (err, row) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json(row);
-    });
-  });
-});
+//     // Если все в порядке, получаем последнее состояние
+//     const sql = `SELECT * FROM project_states WHERE project_id = ? ORDER BY created_at DESC LIMIT 1`;
+//     db.get(sql, [projectId], (err, row) => {
+//       if (err) return res.status(500).json({ error: err.message });
+//       res.json(row);
+//     });
+//   });
+// });
 
 // POST /api/projects - Создать новый проект
 router.post('/', (req, res) => {
@@ -52,29 +52,29 @@ router.post('/', (req, res) => {
   });
 });
 
-// PUT /api/projects/:id - Обновить/сохранить проект
-router.put('/:id', (req, res) => {
-    const projectId = req.params.id;
-    const userId = req.user.userId;
-    const { nodes, edges, messages, suggestions } = req.body;
+// // PUT /api/projects/:id - Обновить/сохранить проект
+// router.put('/:id', (req, res) => {
+//     const projectId = req.params.id;
+//     const userId = req.user.userId;
+//     const { nodes, edges, messages, suggestions } = req.body;
     
-    // Проверяем, что проект принадлежит текущему пользователю
-    const checkOwnerSql = 'SELECT user_id FROM projects WHERE id = ?';
-    db.get(checkOwnerSql, [projectId], (err, project) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (!project || project.user_id !== userId) {
-            return res.status(403).json({ error: "Доступ запрещен" });
-        }
+//     // Проверяем, что проект принадлежит текущему пользователю
+//     const checkOwnerSql = 'SELECT user_id FROM projects WHERE id = ?';
+//     db.get(checkOwnerSql, [projectId], (err, project) => {
+//         if (err) return res.status(500).json({ error: err.message });
+//         if (!project || project.user_id !== userId) {
+//             return res.status(403).json({ error: "Доступ запрещен" });
+//         }
         
-        const updateProjectSql = 'UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ?';
-        db.run(updateProjectSql, [projectId]);
+//         const updateProjectSql = 'UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ?';
+//         db.run(updateProjectSql, [projectId]);
         
-        const stateSql = 'INSERT INTO project_states (project_id, nodes_json, edges_json, messages_json, suggestions_json) VALUES (?, ?, ?, ?, ?)';
-        db.run(stateSql, [projectId, JSON.stringify(nodes), JSON.stringify(edges), JSON.stringify(messages), JSON.stringify(suggestions)], function(err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.status(200).json({ message: 'Проект успешно сохранен' });
-        });
-    });
+//         const stateSql = 'INSERT INTO project_states (project_id, nodes_json, edges_json, messages_json, suggestions_json) VALUES (?, ?, ?, ?, ?)';
+//         db.run(stateSql, [projectId, JSON.stringify(nodes), JSON.stringify(edges), JSON.stringify(messages), JSON.stringify(suggestions)], function(err) {
+//             if (err) return res.status(500).json({ error: err.message });
+//             res.status(200).json({ message: 'Проект успешно сохранен' });
+//         });
+//     });
 
 // PATCH /api/projects/:id/rename - Переименовать проект
 router.patch('/:id/rename', (req, res) => {
@@ -130,6 +130,51 @@ router.delete('/:id', (req, res) => {
         });
     });
   });
+
+  // GET /api/projects/:id - Получить последнее состояние проекта
+router.get('/:id', (req, res) => {
+  const projectId = req.params.id;
+  const userId = req.user.userId;
+  // Проверяем, что проект принадлежит текущему пользователю
+  const checkOwnerSql = 'SELECT user_id FROM projects WHERE id = ?';
+  db.get(checkOwnerSql, [projectId], (err, project) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!project || project.user_id !== userId) {
+      return res.status(403).json({ error: "Доступ запрещен" });
+    }
+
+    // Если все в порядке, получаем последнее состояние
+    const sql = `SELECT * FROM project_states WHERE project_id = ? ORDER BY created_at DESC LIMIT 1`;
+    db.get(sql, [projectId], (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(row);
+    });
+  });
+  // PUT /api/projects/:id - Обновить/сохранить проект
+router.put('/:id', (req, res) => {
+    const projectId = req.params.id;
+    const userId = req.user.userId;
+    const { nodes, edges, messages, suggestions } = req.body;
+    
+    // Проверяем, что проект принадлежит текущему пользователю
+    const checkOwnerSql = 'SELECT user_id FROM projects WHERE id = ?';
+    db.get(checkOwnerSql, [projectId], (err, project) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!project || project.user_id !== userId) {
+            return res.status(403).json({ error: "Доступ запрещен" });
+        }
+        
+        const updateProjectSql = 'UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = ?';
+        db.run(updateProjectSql, [projectId]);
+        
+        const stateSql = 'INSERT INTO project_states (project_id, nodes_json, edges_json, messages_json, suggestions_json) VALUES (?, ?, ?, ?, ?)';
+        db.run(stateSql, [projectId, JSON.stringify(nodes), JSON.stringify(edges), JSON.stringify(messages), JSON.stringify(suggestions)], function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.status(200).json({ message: 'Проект успешно сохранен' });
+        });
+    });
+});
+
 });
 
 module.exports = router;
