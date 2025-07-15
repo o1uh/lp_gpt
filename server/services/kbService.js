@@ -1,5 +1,5 @@
-const { Document } = require("langchain/document");
-const { MemoryVectorStore } = require("@langchain/community/vectorstores/memory");
+const { Document } = require("@langchain/core/documents");
+const { MemoryVectorStore } = require("langchain/vectorstores/memory");
 const { GoogleGenerativeAIEmbeddings } = require("@langchain/google-genai");
 const fs = require('fs').promises;
 const path = require('path');
@@ -15,10 +15,18 @@ const initializeKB = async () => {
         const files = await fs.readdir(KB_DIRECTORY);
 
         for (const file of files) {
+            // Пропускаем системные файлы
+            if (file.startsWith('.')) continue;
+
             const filePath = path.join(KB_DIRECTORY, file);
             const content = await fs.readFile(filePath, 'utf-8');
             // Создаем документ в формате, понятном LangChain
             documents.push(new Document({ pageContent: content, metadata: { source: file } }));
+        }
+
+        if (documents.length === 0) {
+            console.log("No documents found in knowledge base. Skipping initialization.");
+            return;
         }
 
         // Создаем модель для эмбеддингов
@@ -37,7 +45,10 @@ const initializeKB = async () => {
 // Функция для поиска по Базе Знаний
 const queryKB = async (question, count = 4) => {
     if (!vectorStore) {
-        throw new Error("Knowledge Base is not initialized.");
+        // Если БЗ не инициализирована (например, из-за ошибки или отсутствия файлов),
+        // возвращаем пустой массив, чтобы приложение не падало.
+        console.warn("Knowledge Base is not initialized. Returning empty results.");
+        return [];
     }
     console.log(`Querying KB for: "${question}"`);
     // Ищем N самых релевантных документов
