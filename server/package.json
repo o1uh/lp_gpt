@@ -12,11 +12,14 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@langchain/community": "^0.3.48",
+    "@langchain/google-genai": "^0.2.14",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^17.1.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
+    "langchain": "^0.3.29",
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {

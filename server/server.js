@@ -5,6 +5,7 @@ require('dotenv').config();
 const db = require('./database.js'); 
 const express = require('express');
 const cors = require('cors');
+const { initializeKB } = require('./services/kbService');
 
 // Импортируем наши роуты
 const authRoutes = require('./routes/authRoutes');
@@ -30,6 +31,7 @@ app.get('/api/health', (req, res) => {
 // TODO: Здесь будут роуты для авторизации, проектов и т.д.
 
 // --- ЗАПУСК СЕРВЕРА ---
-app.listen(PORT, () => {
+app.listen(PORT, async () => { 
   console.log(`Server is listening on port ${PORT}`);
+  await initializeKB(); 
 });
