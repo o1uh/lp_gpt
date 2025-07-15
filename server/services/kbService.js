@@ -1,7 +1,9 @@
 const { Document } = require("@langchain/core/documents");
 const { MemoryVectorStore } = require("langchain/vectorstores/memory");
 const { GoogleGenerativeAIEmbeddings } = require("@langchain/google-genai");
-const fs = require('fs').promises;
+const { DirectoryLoader } = require("langchain/document_loaders/fs/directory");
+const { TextLoader } = require("langchain/document_loaders/fs/text");
+const { RecursiveCharacterTextSplitter } = require("langchain/text_splitter");
 const path = require('path');
 
 const KB_DIRECTORY = path.join(__dirname, '..', 'knowledge_base');
@@ -9,33 +11,48 @@ let vectorStore = null; // Будем хранить нашу векторную
 
 // Функция для загрузки и инициализации Базы Знаний
 const initializeKB = async () => {
-    console.log("Initializing Knowledge Base...");
+    console.log("Initializing Knowledge Base from:", KB_DIRECTORY);
     try {
-        const documents = [];
-        const files = await fs.readdir(KB_DIRECTORY);
+        // 2. Настраиваем DirectoryLoader
+        const loader = new DirectoryLoader(
+            KB_DIRECTORY,
+            {
+                // Для каждого типа файла указываем, какой загрузчик использовать
+                '.js': (path) => new TextLoader(path),
+                '.jsx': (path) => new TextLoader(path),
+                '.ts': (path) => new TextLoader(path),
+                '.tsx': (path) => new TextLoader(path),
+                '.md': (path) => new TextLoader(path),
+                '.txt': (path) => new TextLoader(path),
+            },
+            true, // Рекурсивно обходить все подпапки
+            'ignore' // Режим обработки ошибок - игнорировать файлы, которые не удалось загрузить
+        );
 
-        for (const file of files) {
-            // Пропускаем системные файлы
-            if (file.startsWith('.')) continue;
-
-            const filePath = path.join(KB_DIRECTORY, file);
-            const content = await fs.readFile(filePath, 'utf-8');
-            // Создаем документ в формате, понятном LangChain
-            documents.push(new Document({ pageContent: content, metadata: { source: file } }));
-        }
-
-        if (documents.length === 0) {
+        const docs = await loader.load();
+        
+        if (docs.length === 0) {
             console.log("No documents found in knowledge base. Skipping initialization.");
             return;
         }
+        
+        console.log(`Loaded ${docs.length} documents. Splitting text...`);
 
-        // Создаем модель для эмбеддингов
-        const embeddings = new GoogleGenerativeAIEmbeddings({ apiKey: process.env.VITE_GEMINI_API_KEY });
+        // Разбиваем большие документы на маленькие чанки (кусочки)
+        const textSplitter = new RecursiveCharacterTextSplitter({
+            chunkSize: 1000, // Размер одного чанка в символах
+            chunkOverlap: 200, // Сколько символов из предыдущего чанка будет в начале следующего
+        });
+
+        const splitDocs = await textSplitter.splitDocuments(docs);
+
+        console.log(`Split into ${splitDocs.length} chunks. Creating vector store...`);
+
+        const embeddings = new GoogleGenerativeAIEmbeddings({ apiKey: process.env.GEMINI_KB_API_KEY });
         
-        // Создаем векторное хранилище из документов
-        vectorStore = await MemoryVectorStore.fromDocuments(documents, embeddings);
+        vectorStore = await MemoryVectorStore.fromDocuments(splitDocs, embeddings);
         
-        console.log("Knowledge Base initialized successfully. Loaded documents:", files.length);
+        console.log("Knowledge Base initialized successfully.");
 
     } catch (error) {
         console.error("Failed to initialize Knowledge Base:", error);

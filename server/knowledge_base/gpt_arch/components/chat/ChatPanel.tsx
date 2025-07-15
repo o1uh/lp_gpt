@@ -1,0 +1,127 @@
+import { useState, useRef, useEffect } from 'react';
+import { PanelLeftClose, PanelLeftOpen, Send, Pencil, Trash2 } from 'lucide-react';
+import TextareaAutosize from 'react-textarea-autosize';
+import { useAppContext } from '../../context/AppContext';
+import { ChatMessage } from './ChatMessage';
+import { PromptSuggestions } from './PromptSuggestions';
+
+interface ChatPanelProps {
+  isPanelVisible: boolean;
+  onTogglePanel: () => void;
+}
+
+export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => {
+  const { messages, sendMessage, isLoading, promptSuggestions, activeProjectName, activeProjectId, renameCurrentProject, deleteCurrentProject  } = useAppContext();
+  const [inputValue, setInputValue] = useState('');
+  const chatEndRef = useRef<null | HTMLDivElement>(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading]);
+
+  const handleSendMessageClick = () => {
+    if (inputValue.trim() === '' || isLoading) return;
+    sendMessage(inputValue);
+    setInputValue('');
+  };
+  
+  const handleSuggestionClick = (suggestion: string) => {
+    if (isLoading) return;
+    if (suggestion === "Начать с чистого листа") {
+      // Эта логика должна быть в AppContext/useChat, но для простоты пока здесь
+      setInputValue(''); 
+    } else {
+      sendMessage(suggestion);
+    }
+  };
+
+  const handleKeyPress = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      handleSendMessageClick();
+    }
+  };
+
+  return (
+    <div className={`transition-all duration-300 p-4 border-r border-gray-700 flex flex-col ${
+      isPanelVisible ? 'w-1/2' : 'w-3/5'
+    }`}>
+      <div className="flex items-center gap-x-2 mb-4">
+        <button
+          onClick={onTogglePanel}
+          className="p-1 rounded hover:bg-gray-700"
+          title={isPanelVisible ? "Скрыть панель" : "Показать панель"}
+        >
+          {isPanelVisible ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
+        </button>
+        <h2 className="text-xl font-bold truncate">{activeProjectName}</h2>
+        {activeProjectId && (
+          <div className="flex items-center gap-x-2 ml-auto">
+            <button onClick={renameCurrentProject} className="p-1 text-gray-400 hover:text-white" title="Переименовать проект">
+              <Pencil size={16} />
+            </button>
+            <button onClick={deleteCurrentProject} className="p-1 text-red-500 hover:text-red-400" title="Удалить проект">
+              <Trash2 size={16} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="flex-grow bg-gray-800 rounded-lg p-4 space-y-4 overflow-y-auto flex flex-col">
+        {/* НОВАЯ ЛОГИКА: Показываем заглушку, если нет сообщений */}
+        {messages.length === 0 ? (
+          <div className="m-auto text-center text-gray-500">
+            <p className="text-lg">С чего начнём?</p>
+            <p className="text-sm">Выберите подсказку ниже или задайте свой вопрос</p>
+          </div>
+        ) : (
+          // Иначе показываем сообщения
+          messages.map(message => (
+            <ChatMessage 
+              key={message.id} 
+              message={message} 
+              isPanelVisible={isPanelVisible}
+            />
+          ))
+        )}
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="bg-gray-600 p-3 rounded-lg flex items-center gap-x-2">
+              <span className="animate-pulse">●</span>
+              <span className="animate-pulse" style={{ animationDelay: '200ms' }}>●</span>
+              <span className="animate-pulse" style={{ animationDelay: '400ms' }}>●</span>
+            </div>
+          </div>
+        )}
+        <div ref={chatEndRef} />
+      </div>
+
+      <div className="mt-4">
+        <PromptSuggestions 
+          suggestions={promptSuggestions} 
+          onSuggestionClick={handleSuggestionClick} 
+        />
+        <div className="relative flex items-start">
+          <TextareaAutosize
+            placeholder={isLoading ? "AI думает..." : "Задайте ваш вопрос... (Ctrl+Enter для отправки)"}
+            className="w-full p-3 pr-12 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleKeyPress}
+            disabled={isLoading}
+            minRows={1}
+            maxRows={6}
+          />
+          <button
+            onClick={handleSendMessageClick}
+            className="absolute right-2 bottom-2 p-2 rounded-lg text-gray-400 hover:bg-gray-600 hover:text-white transition-colors"
+            disabled={isLoading}
+            title="Отправить (Ctrl+Enter)"
+          >
+            <Send size={20} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
