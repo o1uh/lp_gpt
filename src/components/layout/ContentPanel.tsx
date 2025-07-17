@@ -1,7 +1,13 @@
-import { useState, type ReactNode } from 'react';
-import { Plus, Hash, BookOpen, ClipboardCheck, MessageSquare } from 'lucide-react';
+import { useState, type ReactNode, useEffect } from 'react';
+import { Plus, Hash, BookOpen, ClipboardCheck, MessageSquare, ArrowLeft } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { useAppContext, type Project } from '../../context/AppContext';
+import type { TeacherProject, TeacherCourse } from '../../types';
+
+type ViewState = 
+  | { level: 'projects' }
+  | { level: 'courses', projectId: number, projectName: string }
+  | { level: 'steps', projectId: number, projectName: string, courseId: number, courseName: string };
 
 // Определяем типы для наших вкладок
 type Tab = 'assistant' | 'teacher' | 'examiner';
@@ -12,12 +18,27 @@ interface ContentPanelProps {
   onTabChange: (tab: Tab) => void;
 }
 
+// Фейковые данные для режима обучения
+const teacherProjects: TeacherProject[] = [
+  { id: 101, name: "Проект 'Architect Trainer'" },
+  { id: 102, name: "Проект 'CRM-система'" },
+];
+
+const teacherCourses: { [projectId: number]: TeacherCourse[] } = {
+  101: [ { id: 201, name: "База данных (v1)" }, { id: 202, name: "Авторизация (v1)" } ],
+  102: [],
+};
 
 
 
 export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
   const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId } = useAppContext(); // Получаем реальные проекты
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [teacherView, setTeacherView] = useState<ViewState>({ level: 'projects' });
+
+  useEffect(() => {
+    setTeacherView({ level: 'projects' });
+  }, [activeTab]);
 
   const handleLoadProject = (projectId: number) => {
     // Оборачиваем loadProject в нашу проверку
@@ -82,7 +103,91 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
           </>
         );
       case 'teacher':
-        return <p className="text-sm text-gray-400">Раздел обучения в разработке.</p>;
+        switch (teacherView.level) {
+          case 'projects': { 
+            return (
+              <>
+                <h2 className="text-xs font-bold text-gray-400 uppercase mb-2">Выберите проект для изучения</h2>
+                <ul className="space-y-2">
+                  {teacherProjects.map(project => (
+                    <li key={project.id}>
+                      <button 
+                        onClick={() => setTeacherView({ level: 'courses', projectId: project.id, projectName: project.name })}
+                        className="w-full text-left flex items-center gap-x-2 p-2 rounded text-gray-300 hover:bg-gray-700 hover:text-white"
+                      >
+                        <BookOpen size={16} /> <span>{project.name}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            );
+          } 
+
+          case 'courses': { 
+            const courses = teacherCourses[teacherView.projectId] || []; 
+            return (
+              <>
+                <div className="flex justify-between items-center mb-4">
+                  <button 
+                    onClick={() => setTeacherView({ level: 'projects' })}
+                    className="flex items-center gap-x-1 text-sm text-gray-400 hover:text-white"
+                  >
+                    <ArrowLeft size={16} />
+                    Проекты
+                  </button>
+                  <button 
+                    onClick={() => alert('Открываем модальное окно для создания курса!')} 
+                    className="p-1 rounded hover:bg-gray-700" 
+                    title="Начать новый курс"
+                  >
+                    <Plus size={20} />
+                  </button>
+                </div>
+                <h2 className="text-xs font-bold text-gray-400 uppercase mb-2 truncate" title={teacherView.projectName}>
+                  Курсы по проекту: {teacherView.projectName}
+                </h2>
+                <ul className="space-y-2">
+                  {courses.length > 0 ? (
+                    courses.map(course => (
+                      <li key={course.id}>
+                        <button 
+                          onClick={() => {
+                            // Проверяем, что teacherView имеет тип 'courses' перед доступом к projectId
+                            if (teacherView.level === 'courses') {
+                                setTeacherView({ level: 'steps', courseId: course.id, courseName: course.name, projectId: teacherView.projectId, projectName: teacherView.projectName });
+                            }
+                          }}
+                          className="w-full text-left flex items-center gap-x-2 p-2 rounded text-gray-300 hover:bg-gray-700 hover:text-white"
+                        >
+                          <Hash size={16} /> <span>{course.name}</span>
+                        </button>
+                      </li>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500 p-2">Для этого проекта еще нет курсов. Создайте первый!</p>
+                  )}
+                </ul>
+              </>
+            );
+          } 
+
+          case 'steps': { 
+            if (teacherView.level !== 'steps') return null; 
+            return (
+                <div className="flex justify-between items-center mb-4">
+                    <button 
+                      onClick={() => setTeacherView({ level: 'courses', projectId: teacherView.projectId, projectName: teacherView.projectName })}
+                      className="flex items-center gap-x-1 text-sm text-gray-400 hover:text-white"
+                    >
+                      <ArrowLeft size={16} />
+                      Курсы
+                    </button>
+                </div>
+            )
+          } 
+        }
+        return null;
       case 'examiner':
         return <p className="text-sm text-gray-400">Раздел тестов в разработке.</p>;
       default:

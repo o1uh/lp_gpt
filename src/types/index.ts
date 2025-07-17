@@ -3,3 +3,19 @@ export type Message = {
   text: string;
   sender: 'user' | 'ai';
 };
+
+export interface TeacherProject {
+  id: number;
+  name: string;
+}
+
+export interface TeacherCourse {
+  id: number;
+  name: string;
+}
+
+export interface TeacherStep {
+  id: number;
+  name: string;
+  status: 'locked' | 'unlocked' | 'completed';
+}
