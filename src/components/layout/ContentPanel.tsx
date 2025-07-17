@@ -3,6 +3,7 @@ import { Plus, Hash, BookOpen, ClipboardCheck, MessageSquare, ArrowLeft } from '
 import { Modal } from '../ui/Modal';
 import { useAppContext, type Project } from '../../context/AppContext';
 import type { TeacherProject, TeacherCourse } from '../../types';
+import { NewCourseModal } from '../ui/NewCourseModal';
 
 type ViewState = 
   | { level: 'projects' }
@@ -32,34 +33,42 @@ const teacherCourses: { [projectId: number]: TeacherCourse[] } = {
 
 
 export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
-  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId } = useAppContext(); // Получаем реальные проекты
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId } = useAppContext(); 
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [teacherView, setTeacherView] = useState<ViewState>({ level: 'projects' });
 
   useEffect(() => {
     setTeacherView({ level: 'projects' });
   }, [activeTab]);
 
-  const handleLoadProject = (projectId: number) => {
-    // Оборачиваем loadProject в нашу проверку
-    navigateWithDirtyCheck(() => loadProject(projectId), "Перейти к проекту");
-  };
-
-  const handleOpenCreateModal = () => {
-    // Эта функция будет вызываться при клике на "+"
-    // Она оборачивает открытие модального окна в проверку
+  const handleOpenCreateProjectModal = () => {
     navigateWithDirtyCheck(
-      () => {
-        // Это действие выполнится, если все "чисто" или пользователь согласился продолжить
-        setIsModalOpen(true);
-      },
-      "Создать новый проект"
+      () => { setIsProjectModalOpen(true); }, 
+      "Создать новый диалог"
     );
   };
+  
+  const handleOpenCreateCourseModal = () => {
+    setIsCourseModalOpen(true);
+  };
 
-  // Оборачиваем смену вкладки в проверку
-  const handleTabChange = (tab: Tab) => {
+  const handleCreateProject = (template: 'empty' | 'blog') => {
+    startNewProject(template);
+    setIsProjectModalOpen(false);
+  };
+
+  const handleCreateCourse = (topic: string) => {
+    alert(`Создаем курс по теме: "${topic}"`);
+    setIsCourseModalOpen(false);
+  };
+
+  const handleTabChange = (tab: 'assistant' | 'teacher' | 'examiner') => {
     navigateWithDirtyCheck(() => onTabChange(tab), "Переключить режим");
+  };
+
+  const handleLoadProject = (projectId: number) => {
+    navigateWithDirtyCheck(() => loadProject(projectId), "Перейти к проекту");
   };
   
   // Функция для стилизации кнопок-вкладок
@@ -77,21 +86,23 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
       case 'assistant':
         return (
           <>
-            <h2 className="text-xs font-bold text-gray-400 uppercase mb-2">Диалоги</h2>
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-xs font-bold text-gray-400 uppercase">Диалоги</h2>
+              <button onClick={handleOpenCreateProjectModal} className="p-1 rounded text-gray-400 hover:text-white hover:bg-gray-700" title="Создать новый диалог">
+                <Plus size={16} />
+              </button>
+            </div>
             <ul className="space-y-2">
               {projects.map((project: Project) => {
-                // 2. Проверяем, является ли текущий проект в списке активным
                 const isActive = project.id === activeProjectId;
-                
                 return (
                   <li key={project.id}>
                     <button 
                       onClick={() => handleLoadProject(project.id)} 
-                      // 3. Добавляем классы в зависимости от isActive
                       className={`w-full text-left flex items-center gap-x-2 p-2 rounded transition-colors ${
                         isActive
-                          ? 'bg-blue-600/20 text-white' // Стили для активного элемента
-                          : 'text-gray-300 hover:bg-gray-700 hover:text-white' // Стили для неактивного
+                          ? 'bg-blue-600/20 text-white'
+                          : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                       }`}
                     >
                       <Hash size={16} /> <span>{project.name}</span>
@@ -136,11 +147,7 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
                     <ArrowLeft size={16} />
                     Проекты
                   </button>
-                  <button 
-                    onClick={() => alert('Открываем модальное окно для создания курса!')} 
-                    className="p-1 rounded hover:bg-gray-700" 
-                    title="Начать новый курс"
-                  >
+                  <button onClick={handleOpenCreateCourseModal} className="p-1 rounded hover:bg-gray-700" title="Начать новый курс">
                     <Plus size={20} />
                   </button>
                 </div>
@@ -199,9 +206,6 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
     <aside className="w-64 bg-gray-800/50 p-4 flex flex-col">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-lg font-bold">Архитектура</h1>
-        <button onClick={handleOpenCreateModal} className="p-1 rounded hover:bg-gray-700" title="Создать новый проект">
-          <Plus size={20} />
-        </button>
       </div>
 
       <div className="flex justify-around items-center mb-4 border-b border-gray-700 pb-2">
@@ -232,25 +236,30 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
         {renderContent()}
       </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Создать новый проект">
+      <Modal isOpen={isProjectModalOpen} onClose={() => setIsProjectModalOpen(false)} title="Создать новый проект">
         <div className="flex flex-col space-y-4">
           <p className="text-sm text-gray-400">
             Начните с чистого листа или используйте готовый шаблон для быстрого старта.
           </p>
           <button 
-            onClick={() => { startNewProject('empty'); setIsModalOpen(false); }}
+            onClick={() => { handleCreateProject('empty')}}
             className="w-full text-left p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
           >
             Пустой проект
           </button>
           <button 
-            onClick={() => { startNewProject('blog'); setIsModalOpen(false); }}
+            onClick={() => { handleCreateProject('blog')}}
             className="w-full text-left p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
           >
             Шаблон: Блог
           </button>
         </div>
       </Modal>
+       <NewCourseModal 
+        isOpen={isCourseModalOpen} 
+        onClose={() => setIsCourseModalOpen(false)}
+        onSubmit={handleCreateCourse}
+      />
     </aside>
   );
 };
