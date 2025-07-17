@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const db = require('../database.js');
+const { db } = require('../database.js');
 
 // --- Эндпоинт для входа в систему: POST /api/auth/login ---
 router.post('/login', (req, res) => {

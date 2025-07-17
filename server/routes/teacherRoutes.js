@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../database.js');
+const { db } = require('../database.js');
 
 // GET /api/teacher/knowledge-bases - Получить список всех "учебных проектов"
 router.get('/knowledge-bases', (req, res) => {

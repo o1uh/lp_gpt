@@ -5,7 +5,7 @@ const { DirectoryLoader } = require("langchain/document_loaders/fs/directory");
 const { TextLoader } = require("langchain/document_loaders/fs/text");
 const { RecursiveCharacterTextSplitter } = require("langchain/text_splitter");
 const path = require('path');
-const db = require('../database.js'); // Импортируем нашу БД
+const { db } = require('../database.js');
 
 // Глобальная переменная для хранения векторных баз.
 // Ключ - ID Базы Знаний, значение - сам vectorStore.

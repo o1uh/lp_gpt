@@ -1,39 +1,57 @@
-// Импортируем переменные окружения
+// Импортируем переменные окружения в самом начале
 require('dotenv').config();
 
-
-const db = require('./database.js'); 
+// Импортируем наши модули
+const { db, createTables } = require('./database.js'); 
+const { initializeAllKBs } = require('./services/kbService.js');
 const express = require('express');
 const cors = require('cors');
-const { initializeAllKBs } = require('./services/kbService');
+const authMiddleware = require('./middleware/authMiddleware.js');
+const authRoutes = require('./routes/authRoutes.js');
+const projectRoutes = require('./routes/projectRoutes.js');
+const teacherRoutes = require('./routes/teacherRoutes.js');
+// const aiRoutes = require('./routes/aiRoutes.js'); // Мы пока не создали этот файл, поэтому закомментируем
 
-// Импортируем наши роуты
-const authRoutes = require('./routes/authRoutes');
-const projectRoutes = require('./routes/projectRoutes');
-const authMiddleware = require('./middleware/authMiddleware'); 
-const teacherRoutes = require('./routes/teacherRoutes');
-
+// Создаем приложение Express
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Подключаем middleware
 app.use(cors());
 app.use(express.json());
 
-// --- РОУТЫ ---
-
-// Подключаем роуты авторизации по префиксу 
+// --- РОУТЫ (Маршруты API) ---
 app.use('/api/auth', authRoutes);
-app.use('/api/projects', authMiddleware, projectRoutes); 
+app.use('/api/projects', authMiddleware, projectRoutes);
 app.use('/api/teacher', authMiddleware, teacherRoutes);
+// app.use('/api/ai', authMiddleware, aiRoutes); // И этот тоже
 
+// Простой роут для проверки работоспособности
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
+  res.json({ status: 'ok', message: 'Server is running!' });
 });
 
-// TODO: Здесь будут роуты для авторизации, проектов и т.д.
+// Главная асинхронная функция для запуска сервера
+const startServer = async () => {
+  try {
+    // 1. Сначала дожидаемся создания таблиц
+    await createTables();
+    console.log("Database tables are ready.");
 
-// --- ЗАПУСК СЕРВЕРА ---
-app.listen(PORT, async () => { 
-  console.log(`Server is listening on port ${PORT}`);
-  await initializeAllKBs(); 
-});
+    // 2. Только потом инициализируем Базу Знаний, которая читает из этих таблиц
+    await initializeAllKBs();
+    console.log("Knowledge Base is ready.");
+
+    // 3. И только потом запускаем сервер, который слушает запросы
+    app.listen(PORT, () => {
+      console.log(`Server is listening on port ${PORT}`);
+    });
+
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1); // Выходим из приложения, если старт не удался
+  }
+};
+
+// Запускаем наш сервер
+startServer();
