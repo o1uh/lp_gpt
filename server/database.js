@@ -82,7 +82,43 @@ const createTables = () => {
 
     console.log('Tables created or already exist.');
   });
+
+  // Таблица для описания "учебных проектов" (Баз Знаний)
+    db.run(`
+      CREATE TABLE IF NOT EXISTS knowledge_bases (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT UNIQUE NOT NULL,
+        description TEXT
+      )
+    `);
+
+    // Таблица, связывающая Базы Знаний с папками на диске
+    db.run(`
+      CREATE TABLE IF NOT EXISTS kb_sources (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        kb_id INTEGER NOT NULL,
+        path TEXT NOT NULL,
+        description TEXT,
+        FOREIGN KEY (kb_id) REFERENCES knowledge_bases(id)
+      )
+    `);
+// --- ЗАПОЛНЯЕМ ДАННЫМИ ДЛЯ ПРИМЕРА ---
+    db.serialize(() => {
+        const insertKb = `INSERT OR IGNORE INTO knowledge_bases (id, name, description) VALUES (?, ?, ?)`;
+        db.run(insertKb, [1, "Архитектурный онбординг", "Наш текущий проект для внутреннего обучения"]);
+        db.run(insertKb, [2, "Проект 'Казино'", "Публичный продукт компании"]);
+
+        const insertSource = `INSERT OR IGNORE INTO kb_sources (kb_id, path) VALUES (?, ?)`;
+        // Источники для "Архитектурного онбординга"
+        db.run(insertSource, [1, "./knowledge_base/common_docs"]);
+        db.run(insertSource, [1, "./knowledge_base/gpt_arch"]); // Папка с кодом нашего проекта
+        // Источники для "Казино"
+        db.run(insertSource, [2, "./knowledge_base/common_docs"]);
+        db.run(insertSource, [2, "./knowledge_base/project_casino"]);
+        db.run(insertSource, [2, "./knowledge_base/admin_rules"]);
+    });
 };
+
 
 // Добавляем администратора, если его еще нет
 const insertAdmin = 'INSERT OR IGNORE INTO users (login, role) VALUES (?, ?)';

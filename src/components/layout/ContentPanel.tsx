@@ -1,14 +1,16 @@
 import { useState, type ReactNode, useEffect } from 'react';
-import { Plus, Hash, BookOpen, ClipboardCheck, MessageSquare, ArrowLeft } from 'lucide-react';
+import { Plus, Hash, BookOpen, ClipboardCheck, MessageSquare, ArrowLeft, LoaderCircle } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { useAppContext, type Project } from '../../context/AppContext';
 import type { TeacherProject, TeacherCourse } from '../../types';
 import { NewCourseModal } from '../ui/NewCourseModal';
+import { fetchKnowledgeBases, fetchCoursesForKB, createCourse } from '../../api/teacherService';
 
 type ViewState = 
   | { level: 'projects' }
-  | { level: 'courses', projectId: number, projectName: string }
-  | { level: 'steps', projectId: number, projectName: string, courseId: number, courseName: string };
+  | { level: 'courses', knowledgeBaseId: number, projectName: string } 
+  | { level: 'steps', knowledgeBaseId: number, projectName: string, courseId: number, courseName: string };
+
 
 // Определяем типы для наших вкладок
 type Tab = 'assistant' | 'teacher' | 'examiner';
@@ -20,15 +22,15 @@ interface ContentPanelProps {
 }
 
 // Фейковые данные для режима обучения
-const teacherProjects: TeacherProject[] = [
-  { id: 101, name: "Проект 'Architect Trainer'" },
-  { id: 102, name: "Проект 'CRM-система'" },
-];
+// const teacherProjects: TeacherProject[] = [
+//   { id: 101, name: "Проект 'Architect Trainer'" },
+//   { id: 102, name: "Проект 'CRM-система'" },
+// ];
 
-const teacherCourses: { [projectId: number]: TeacherCourse[] } = {
-  101: [ { id: 201, name: "База данных (v1)" }, { id: 202, name: "Авторизация (v1)" } ],
-  102: [],
-};
+// const teacherCourses: { [projectId: number]: TeacherCourse[] } = {
+//   101: [ { id: 201, name: "База данных (v1)" }, { id: 202, name: "Авторизация (v1)" } ],
+//   102: [],
+// };
 
 
 
@@ -37,10 +39,33 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [teacherView, setTeacherView] = useState<ViewState>({ level: 'projects' });
+  const [studyProjects, setStudyProjects] = useState<TeacherProject[]>([]); // Новое состояние
+  const [teacherCourses, setTeacherCourses] = useState<TeacherCourse[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
 
   useEffect(() => {
-    setTeacherView({ level: 'projects' });
+    return () => {setTeacherView({ level: 'projects' });}
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== 'teacher') return;
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        if (teacherView.level === 'projects') {
+          const data = await fetchKnowledgeBases(); // Вызываем новый сервис
+          setStudyProjects(data);
+        } else if (teacherView.level === 'courses') {
+          const data = await fetchCoursesForKB(teacherView.knowledgeBaseId);
+          setTeacherCourses(data);
+        }
+      } catch (error) {
+        console.error("Ошибка загрузки данных для обучения:", error);
+      } finally { setIsLoading(false); }
+    };
+    loadData();
+  }, [activeTab, teacherView]);
 
   const handleOpenCreateProjectModal = () => {
     navigateWithDirtyCheck(
@@ -58,9 +83,17 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
     setIsProjectModalOpen(false);
   };
 
-  const handleCreateCourse = (topic: string) => {
-    alert(`Создаем курс по теме: "${topic}"`);
-    setIsCourseModalOpen(false);
+  const handleCreateCourse = async (topic: string) => {
+    if (teacherView.level !== 'courses') return; // Защита
+    
+    try {
+      const newCourseData = await createCourse(teacherView.knowledgeBaseId, topic);
+      setTeacherCourses(prev => [...prev, newCourseData.course]);
+      setIsCourseModalOpen(false);
+    } catch (error) {
+      console.error("Ошибка создания курса:", error);
+      alert("Не удалось создать курс");
+    }
   };
 
   const handleTabChange = (tab: 'assistant' | 'teacher' | 'examiner') => {
@@ -82,6 +115,13 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
 
   // Функция для рендеринга контента активной вкладки
   const renderContent = (): ReactNode => {
+    if (isLoading) {
+      return (
+        <div className="flex justify-center items-center h-full">
+          <LoaderCircle className="animate-spin text-gray-500" size={24} />
+        </div>
+      );
+    }
     switch (activeTab) {
       case 'assistant':
         return (
@@ -120,10 +160,9 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
               <>
                 <h2 className="text-xs font-bold text-gray-400 uppercase mb-2">Выберите проект для изучения</h2>
                 <ul className="space-y-2">
-                  {teacherProjects.map(project => (
+                  {studyProjects.map(project => (
                     <li key={project.id}>
-                      <button 
-                        onClick={() => setTeacherView({ level: 'courses', projectId: project.id, projectName: project.name })}
+                      <button onClick={() => setTeacherView({ level: 'courses', knowledgeBaseId: project.id, projectName: project.name })}
                         className="w-full text-left flex items-center gap-x-2 p-2 rounded text-gray-300 hover:bg-gray-700 hover:text-white"
                       >
                         <BookOpen size={16} /> <span>{project.name}</span>
@@ -136,7 +175,7 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
           } 
 
           case 'courses': { 
-            const courses = teacherCourses[teacherView.projectId] || []; 
+             const courses = teacherCourses;
             return (
               <>
                 <div className="flex justify-between items-center mb-4">
@@ -162,7 +201,7 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
                           onClick={() => {
                             // Проверяем, что teacherView имеет тип 'courses' перед доступом к projectId
                             if (teacherView.level === 'courses') {
-                                setTeacherView({ level: 'steps', courseId: course.id, courseName: course.name, projectId: teacherView.projectId, projectName: teacherView.projectName });
+                                setTeacherView({ level: 'steps', courseId: course.id, courseName: course.name, knowledgeBaseId: teacherView.knowledgeBaseId, projectName: teacherView.projectName });
                             }
                           }}
                           className="w-full text-left flex items-center gap-x-2 p-2 rounded text-gray-300 hover:bg-gray-700 hover:text-white"
@@ -184,7 +223,7 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
             return (
                 <div className="flex justify-between items-center mb-4">
                     <button 
-                      onClick={() => setTeacherView({ level: 'courses', projectId: teacherView.projectId, projectName: teacherView.projectName })}
+                      onClick={() => setTeacherView({ level: 'courses', knowledgeBaseId: teacherView.knowledgeBaseId, projectName: teacherView.projectName })}
                       className="flex items-center gap-x-1 text-sm text-gray-400 hover:text-white"
                     >
                       <ArrowLeft size={16} />
