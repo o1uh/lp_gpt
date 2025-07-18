@@ -287,7 +287,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setGeneratedPlan(null);
     setCurrentTopic(topic);
     setCurrentKbId(kbId);
-    setPlanningMessages([]); // Очищаем историю планирования
+
+    setMessages([]); 
+    setPlanningMessages([{ id: Date.now(), text: `Генерирую план обучения по теме "${topic}"...`, sender: 'ai' }]);
+    
     setIsLoading(true);
     try {
       const response = await getPlanUpdate(kbId, topic, []);
@@ -314,10 +317,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Обновляем чат отформатированным текстом
-      setMessages(prev => [...prev, { id: Date.now() + 1, text: planText, sender: 'ai' }]);
+      setPlanningMessages(prev => [...prev, { id: Date.now() + 1, text: planText, sender: 'ai' }]);
     } catch (error) {
       console.error(error);
-      setMessages(prev => [...prev, { id: Date.now() + 1, text: "Не удалось сгенерировать план.", sender: 'ai' }]);
+      setPlanningMessages(prev => [...prev, { id: Date.now() + 1, text: "Не удалось сгенерировать план.", sender: 'ai' }]);
     } finally {
       setIsLoading(false);
     }

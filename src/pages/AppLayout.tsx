@@ -34,6 +34,7 @@ export const AppLayout = () => {
         <ChatPanel 
           isPanelVisible={isPanelVisible}
           onTogglePanel={() => setIsPanelVisible(!isPanelVisible)}
+          activeTab={activeTab}
         />
         <div className="w-full flex-1">
           <ArchitecturePanel />

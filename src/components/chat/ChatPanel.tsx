@@ -8,9 +8,10 @@ import { PromptSuggestions } from './PromptSuggestions';
 interface ChatPanelProps {
   isPanelVisible: boolean;
   onTogglePanel: () => void;
+  activeTab: 'assistant' | 'teacher' | 'examiner'; 
 }
 
-export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => {
+export const ChatPanel = ({ isPanelVisible, onTogglePanel, activeTab }: ChatPanelProps) => {
   const { 
     messages, 
     sendMessage, 
@@ -27,8 +28,9 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => 
     } = useAppContext();
   const [inputValue, setInputValue] = useState('');
   const chatEndRef = useRef<null | HTMLDivElement>(null);
-  const currentMessages = isPlanning ? planningMessages : messages;
-  const currentSendMessage = isPlanning ? sendPlanningMessage : sendMessage;
+  const isInPlanningMode = isPlanning && activeTab === 'teacher';
+  const currentMessages = isInPlanningMode ? planningMessages : messages;
+  const currentSendMessage = isPlanning && activeTab === 'teacher' ? sendPlanningMessage : sendMessage;
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -70,7 +72,7 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => 
           {isPanelVisible ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
         </button>
         <h2 className="text-xl font-bold truncate" title={activeProjectName}>
-          {isPlanning ? `Планирование: ${activeProjectName}` : activeProjectName}
+          {isInPlanningMode ? `Планирование: ${activeProjectName}` : activeProjectName}
         </h2>
         {activeProjectId && (
           <div className="flex items-center gap-x-2 ml-auto">
@@ -115,7 +117,7 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => 
 
       <div className="mt-4">
         {/* НОВОЕ: Показываем кнопку "Утвердить", если есть план */}
-        {isPlanning && (
+        {isInPlanningMode && (
           <div className="mb-4 text-center">
             <button 
               onClick={approvePlan}
