@@ -15,7 +15,7 @@ const API_URL = 'http://localhost:3001/api/ai';
  * @param kbId - ID Базы Знаний
  * @param topic - Тема для генерации плана
  */
-export const generatePlan = async (kbId: number, topic: string) => {
+export const generatePlan = async (kbId: number, topic: string): Promise<{ fullResponse: string }> => {
     const response = await fetch(`${API_URL}/generate-plan`, {
         method: 'POST',
         headers: getAuthHeaders(),

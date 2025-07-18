@@ -281,17 +281,36 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
    const startCoursePlanning = async (kbId: number, topic: string) => {
     setIsPlanning(true);
-    setGeneratedPlan(null); // Очищаем старый план
+    setGeneratedPlan(null);
     setCurrentTopic(topic);
     setCurrentKbId(kbId);
     setMessages([{ id: Date.now(), text: `Генерирую план обучения по теме "${topic}"...`, sender: 'ai' }]);
     setIsLoading(true);
     try {
-      const plan = await generatePlan(kbId, topic);
-      setGeneratedPlan(plan);
-      // Формируем красивое сообщение с планом
-      const planText = "Вот предложенный план обучения. Вы можете попросить меня изменить его или утвердить.\n\n" + 
-                       plan.map((step: PlanStep) => `**${step.id}** ${step.title}`).join('\n');
+      const response = await generatePlan(kbId, topic);
+      const fullResponseText = response.fullResponse;
+
+      const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
+      const match = fullResponseText.match(jsonRegex);
+      
+      let planText = fullResponseText; // По умолчанию, весь ответ - это текст
+      
+      if (match && match[1]) {
+        try {
+          const plan = JSON.parse(match[1]);
+          setGeneratedPlan(plan);
+          // Убираем JSON-блок из текстового ответа, который покажем в чате
+          planText = fullResponseText.replace(jsonRegex, '').trim();
+        } catch (e) {
+          console.error("Ошибка парсинга плана:", e);
+          planText = "Не удалось обработать сгенерированный план. Попробуйте снова.";
+        }
+      } else {
+        // Если AI не вернул JSON, просто показываем его текстовый ответ
+        console.warn("AI did not return a JSON plan.");
+      }
+
+      // Обновляем чат отформатированным текстом
       setMessages(prev => [...prev, { id: Date.now() + 1, text: planText, sender: 'ai' }]);
     } catch (error) {
       console.error(error);

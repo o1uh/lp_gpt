@@ -10,17 +10,14 @@ const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash"});
 // POST /api/ai/generate-plan - Эндпоинт для генерации учебного плана
 router.post('/generate-plan', async (req, res) => {
     const { kbId, topic } = req.body;
-
-    if (!kbId || !topic) {
-        return res.status(400).json({ error: 'Необходимо указать ID Базы Знаний и тему' });
-    }
+    if (!kbId || !topic) return res.status(400).json({ error: '...' });
 
     try {
-        // 1. Получаем контекст из Базы Знаний по теме
-        const contextDocs = await queryKB(kbId, topic, 10); // Ищем 10 самых релевантных фрагментов
+        // 1. Увеличиваем количество документов для контекста
+        const contextDocs = await queryKB(kbId, topic, 20); 
         const context = contextDocs.map(doc => doc.pageContent).join('\n---\n');
 
-        // 2. Создаем промпт для "Методиста"
+        // 2. Обновляем промпт
         const plannerPrompt = `
             Твоя роль: AI-Тимлид, составляющий план онбординга для нового разработчика.
             Твоя задача: Создать пошаговый план обучения по конкретной теме в рамках существующего IT-проекта. План должен быть практическим и помогать новичку разобраться в устройстве **именно этого проекта**, а не в общих теоретических концепциях. Практических заданий быть не должно.
@@ -39,7 +36,9 @@ router.post('/generate-plan', async (req, res) => {
             4.  **Фокус на теории:** План должен быть теоретическим, без практических заданий "напиши код". Цель — понимание.
 
             ФОРМАТ ВЫХОДА:
-            Верни результат ИСКЛЮЧИТЕЛЬНО в виде JSON-массива, обернутого в теги \`\`\`json ... \`\`\`.
+            Твой ответ ДОЛЖЕН состоять из двух частей:
+            1.  Сначала текстовое описание предложенного плана, отформатированное с помощью Markdown.
+            2.  Сразу после текста, без лишних слов, ОБЯЗАТЕЛЬНО верни JSON-массив с планом, обернутый в теги \`\`\`json ... \`\`\`.
             
             Формат JSON:
             [
@@ -54,18 +53,7 @@ router.post('/generate-plan', async (req, res) => {
         // ----------------------
         console.log("ПОЛУЧЕНО ОТ API:", responseText);
 
-        const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
-        const match = responseText.match(jsonRegex);
-
-        if (!match || !match[1]) {
-            throw new Error("AI did not return a valid JSON block.");
-        }
-
-        const jsonString = match[1];
-        
-        const plan = JSON.parse(jsonString);
-
-        res.json(plan);
+        res.json({ fullResponse: responseText });
 
     } catch (error) {
         console.error("Error in /generate-plan route:", error);
