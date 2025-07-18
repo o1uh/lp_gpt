@@ -29,7 +29,6 @@ router.get('/knowledge-bases/:kbId/courses', (req, res) => {
 });
 
 // POST /api/teacher/knowledge-bases/:kbId/courses - Создать новый курс по теме
-// TODO: Реализовать сохранение в БД и запуск генерации плана AI
 router.post('/knowledge-bases/:kbId/courses', (req, res) => {
   const kbId = parseInt(req.params.kbId, 10);
   const { topic } = req.body;
@@ -39,12 +38,26 @@ router.post('/knowledge-bases/:kbId/courses', (req, res) => {
     return res.status(400).json({ error: "Не указана тема курса" });
   }
 
-  console.log(`Получен запрос на создание курса по теме "${topic}" для БЗ с ID ${kbId} от пользователя ${userId}`);
+  const sql = `INSERT INTO courses (kb_id, user_id, topic) VALUES (?, ?, ?)`;
   
-  // Возвращаем фейковый успешный ответ, имитируя создание
-  res.status(201).json({ 
-    message: "Курс успешно создан (симуляция)",
-    course: { id: Date.now(), name: topic } // Возвращаем фейковый объект курса
+  // Создаем запись в таблице `courses`
+  db.run(sql, [kbId, userId, topic], function(err) {
+    if (err) {
+      console.error(err.message);
+      return res.status(500).json({ error: 'Ошибка сервера при создании курса' });
+    }
+    
+    const courseId = this.lastID;
+    console.log(`User ${userId} created a new course "${topic}" with ID ${courseId} for KB #${kbId}`);
+    
+    // TODO: Здесь на следующем шаге мы будем вызывать AI для генерации плана
+    // и сохранять его в поле `plan_json`
+
+    // Возвращаем фронтенду созданный объект курса
+    res.status(201).json({ 
+      message: "Курс успешно создан в базе данных.",
+      course: { id: courseId, name: topic }
+    });
   });
 });
 

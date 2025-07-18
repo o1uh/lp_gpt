@@ -75,31 +75,65 @@ const createTables = () => {
           FOREIGN KEY (kb_id) REFERENCES knowledge_bases(id) ON DELETE CASCADE
         )
       `);
-
-      // Добавляем администратора, если его еще нет
-      const insertAdmin = 'INSERT OR IGNORE INTO users (id, login, role) VALUES (?, ?, ?)';
-      db.run(insertAdmin, [1, 'admin', 'admin']);
-
-      // Добавляем учебные проекты (Базы Знаний)
-      const insertKb = `INSERT OR IGNORE INTO knowledge_bases (id, name, description) VALUES (?, ?, ?)`;
-      db.run(insertKb, [1, "Архитектурный онбординг", "Наш текущий проект для внутреннего обучения"]);
-      db.run(insertKb, [2, "Проект 'Казино'", "Публичный продукт компании"]);
-
-      // Добавляем источники данных для этих БЗ
-      const insertSource = `INSERT OR IGNORE INTO kb_sources (kb_id, path) VALUES (?, ?)`;
-      db.run(insertSource, [1, "knowledge_base/common_docs"]);
-      db.run(insertSource, [1, "knowledge_base/gpt_arch"]);
-      db.run(insertSource, [2, "knowledge_base/common_docs"]);
-      db.run(insertSource, [2, "knowledge_base/project_casino"]);
       
-      // Последняя команда. Когда она завершится, мы считаем, что все готово.
-      db.run(insertSource, [2, "knowledge_base/admin_rules"], (err) => {
-        if (err) {
-            console.error("Error finalizing table creation:", err);
-            return reject(err);
+      // Таблица для хранения курсов, созданных пользователями
+      db.run(`
+        CREATE TABLE IF NOT EXISTS courses (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          kb_id INTEGER NOT NULL, -- К какой Базе Знаний относится курс
+          user_id INTEGER NOT NULL, -- Кто создал/проходит курс
+          topic TEXT NOT NULL, -- Тема, введенная пользователем
+          plan_json TEXT, -- Здесь будет храниться сгенерированный AI план
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (kb_id) REFERENCES knowledge_bases(id) ON DELETE CASCADE,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+      `);
+      
+      // Таблица для отслеживания прогресса по курсу
+      db.run(`
+        CREATE TABLE IF NOT EXISTS course_progress (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          course_id INTEGER NOT NULL,
+          user_id INTEGER NOT NULL,
+          status TEXT NOT NULL DEFAULT 'not_started' CHECK(status IN ('not_started', 'in_progress', 'completed')),
+          completed_steps_json TEXT, -- JSON-массив ID пройденных шагов
+          current_step_id TEXT, -- ID текущего шага
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+      `);
+
+
+      const checkAdminSql = 'SELECT id FROM users WHERE id = 1';
+      db.get(checkAdminSql, [], (err, row) => {
+        if (err) return reject(err);
+
+        // Если админа нет, значит, это самый первый запуск. Вставляем все данные.
+        if (!row) {
+          console.log('First run detected. Seeding initial data...');
+          const insertAdmin = 'INSERT INTO users (id, login, role) VALUES (?, ?, ?)';
+          db.run(insertAdmin, [1, 'admin', 'admin']);
+
+          const insertKb = `INSERT INTO knowledge_bases (id, name, description) VALUES (?, ?, ?)`;
+          db.run(insertKb, [1, "Архитектурный онбординг", "Наш текущий проект"]);
+          db.run(insertKb, [2, "Проект 'Казино'", "Публичный продукт"]);
+
+          const insertSource = `INSERT INTO kb_sources (kb_id, path) VALUES (?, ?)`;
+          db.run(insertSource, [1, "knowledge_base/common_docs"]);
+          db.run(insertSource, [1, "knowledge_base/gpt_arch"]);
+          db.run(insertSource, [2, "knowledge_base/common_docs"]);
+          db.run(insertSource, [2, "knowledge_base/project_casino"]);
+          db.run(insertSource, [2, "knowledge_base/admin_rules"]);
         }
-        console.log('Tables created or already exist.');
-        resolve(); // Сообщаем Promise, что все успешно завершено
+        db.run('SELECT 1', (err) => {
+          if (err) {
+            return reject(err);
+          }
+          console.log('Tables created or already exist.');
+          resolve(); // Теперь Promise резолвится в правильный момент
+        });
       });
     });
   });
