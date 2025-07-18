@@ -6,7 +6,7 @@ import { saveProjectState } from '../api/projectService';
 import { createProject } from '../api/projectService';
 import { sandboxTasks } from '../components/config/templates';
 
-type HistoryItem = {
+export type HistoryItem = {
   role: 'user' | 'model';
   parts: { text: string }[];
 };
@@ -222,5 +222,5 @@ export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, mes
     }
   };
 
-  return { messages, isLoading, setIsLoading, sendMessage, saveCurrentProject, promptSuggestions,  setPromptSuggestions, };
+  return { messages, isLoading, setIsLoading, sendMessage, saveCurrentProject, promptSuggestions,  setPromptSuggestions};
 };

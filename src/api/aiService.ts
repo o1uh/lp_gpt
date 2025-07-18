@@ -1,3 +1,5 @@
+import type { HistoryItem } from '../hooks/useChat';
+
 // Вспомогательная функция для заголовков (можно вынести в общий файл)
 const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
@@ -10,19 +12,14 @@ const getAuthHeaders = () => {
 
 const API_URL = 'http://localhost:3001/api/ai';
 
-/**
- * Отправляет запрос на генерацию учебного плана.
- * @param kbId - ID Базы Знаний
- * @param topic - Тема для генерации плана
- */
-export const generatePlan = async (kbId: number, topic: string): Promise<{ fullResponse: string }> => {
-    const response = await fetch(`${API_URL}/generate-plan`, {
+export const getPlanUpdate = async (kbId: number, topic: string, history: HistoryItem[]): Promise<{ fullResponse: string }> => {
+    const response = await fetch(`${API_URL}/plan-chat`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ kbId, topic }),
+        body: JSON.stringify({ kbId, topic, history }),
     });
     if (!response.ok) {
-        throw new Error('Не удалось сгенерировать план обучения');
+        throw new Error('Не удалось получить ответ от планировщика');
     }
     return response.json();
 };

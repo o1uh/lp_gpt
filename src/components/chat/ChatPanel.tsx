@@ -11,17 +11,32 @@ interface ChatPanelProps {
 }
 
 export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => {
-  const { messages, sendMessage, isLoading, promptSuggestions, activeProjectName, activeProjectId, renameCurrentProject, deleteCurrentProject, isPlanning, approvePlan  } = useAppContext();
+  const { 
+    messages, 
+    sendMessage, 
+    isLoading, 
+    promptSuggestions, 
+    activeProjectName, 
+    activeProjectId, 
+    renameCurrentProject, 
+    deleteCurrentProject, 
+    isPlanning, 
+    approvePlan,
+    planningMessages, 
+    sendPlanningMessage,
+    } = useAppContext();
   const [inputValue, setInputValue] = useState('');
   const chatEndRef = useRef<null | HTMLDivElement>(null);
+  const currentMessages = isPlanning ? planningMessages : messages;
+  const currentSendMessage = isPlanning ? sendPlanningMessage : sendMessage;
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading]);
+  }, [currentMessages, isLoading]);
 
   const handleSendMessageClick = () => {
     if (inputValue.trim() === '' || isLoading) return;
-    sendMessage(inputValue);
+    currentSendMessage(inputValue);
     setInputValue('');
   };
   
@@ -54,7 +69,9 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => 
         >
           {isPanelVisible ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
         </button>
-        <h2 className="text-xl font-bold truncate">{activeProjectName}</h2>
+        <h2 className="text-xl font-bold truncate" title={activeProjectName}>
+          {isPlanning ? `Планирование: ${activeProjectName}` : activeProjectName}
+        </h2>
         {activeProjectId && (
           <div className="flex items-center gap-x-2 ml-auto">
             <button onClick={renameCurrentProject} className="p-1 text-gray-400 hover:text-white" title="Переименовать проект">
@@ -69,14 +86,14 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => 
 
       <div className="flex-grow bg-gray-800 rounded-lg p-4 space-y-4 overflow-y-auto flex flex-col">
         {/* НОВАЯ ЛОГИКА: Показываем заглушку, если нет сообщений */}
-        {messages.length === 0 ? (
+        {currentMessages.length === 0 ? (
           <div className="m-auto text-center text-gray-500">
             <p className="text-lg">С чего начнём?</p>
             <p className="text-sm">Выберите подсказку ниже или задайте свой вопрос</p>
           </div>
         ) : (
           // Иначе показываем сообщения
-          messages.map(message => (
+          currentMessages.map(message => (
             <ChatMessage 
               key={message.id} 
               message={message} 
@@ -120,7 +137,7 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => 
               : isPlanning ? "Обсудите или утвердите план..." 
               : "Задайте ваш вопрос... (Ctrl+Enter для отправки)"
             }
-            disabled={isLoading || isPlanning}
+            disabled={isLoading}
             className="w-full p-3 pr-12 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
@@ -131,7 +148,7 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => 
           <button
             onClick={handleSendMessageClick}
             className="absolute right-2 bottom-2 p-2 rounded-lg text-gray-400 hover:bg-gray-600 hover:text-white transition-colors"
-            disabled={isLoading || isPlanning}
+            disabled={isLoading}
             title="Отправить (Ctrl+Enter)"
           >
             <Send size={20} />

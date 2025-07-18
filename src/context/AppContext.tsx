@@ -2,11 +2,11 @@ import { createContext, useState, useCallback, useContext, useEffect } from 'rea
 import type { ReactNode } from 'react';
 import { type Node, type Edge, type OnNodesChange, type OnEdgesChange, type Connection, applyNodeChanges, applyEdgeChanges, addEdge as addEdgeHelper } from 'reactflow';
 import type { Message, PlanStep, TeacherCourse } from '../types';
-import { useChat } from '../hooks/useChat';
+import { useChat, type HistoryItem } from '../hooks/useChat';
 import { templateBlog, sandboxTasks } from '../components/config/templates';
 import { fetchProjects, fetchProjectById, renameProject, deleteProject } from '../api/projectService';
 import { useAuth } from './AuthContext';
-import { generatePlan } from '../api/aiService';
+import { getPlanUpdate } from '../api/aiService';
 import { createCourse, fetchCoursesForKB } from '../api/teacherService';
 
 
@@ -62,6 +62,8 @@ interface AppContextType {
   generatedPlan: PlanStep[] | null; // Сгенерированный план
   approvePlan: () => void; // Функция для утверждения плана
   startCoursePlanning: (kbId: number, topic: string) => void;
+  planningMessages: Message[]; 
+  sendPlanningMessage: (text: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -82,6 +84,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [currentTopic, setCurrentTopic] = useState('');
   const [currentKbId, setCurrentKbId] = useState<number | null>(null);
   const [teacherCourses, setTeacherCourses] = useState<TeacherCourse[]>([]);
+  const [planningMessages, setPlanningMessages] = useState<Message[]>([]);
 
   const [confirmationState, setConfirmationState] = useState<ConfirmationStateType>({
     isOpen: false,
@@ -279,15 +282,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       onSaveAndConfirm: undefined, 
     });
   };
-   const startCoursePlanning = async (kbId: number, topic: string) => {
+  const startCoursePlanning = async (kbId: number, topic: string) => {
     setIsPlanning(true);
     setGeneratedPlan(null);
     setCurrentTopic(topic);
     setCurrentKbId(kbId);
-    setMessages([{ id: Date.now(), text: `Генерирую план обучения по теме "${topic}"...`, sender: 'ai' }]);
+    setPlanningMessages([]); // Очищаем историю планирования
     setIsLoading(true);
     try {
-      const response = await generatePlan(kbId, topic);
+      const response = await getPlanUpdate(kbId, topic, []);
       const fullResponseText = response.fullResponse;
 
       const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
@@ -319,6 +322,54 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(false);
     }
   };
+
+// Новая функция для продолжения диалога
+  const sendPlanningMessage = async (text: string) => {
+    if (!currentKbId || !currentTopic) return;
+
+    const userMessage: Message = { id: Date.now(), text, sender: 'user' };
+    setPlanningMessages(prev => [...prev, userMessage]);
+    setIsLoading(true);
+
+    const historyForAPI: HistoryItem[] = [...planningMessages, userMessage].map(msg => ({
+      role: msg.sender === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.text }],
+    }));
+
+    try {
+        const response = await getPlanUpdate(currentKbId, currentTopic, historyForAPI);
+        const fullResponseText = response.fullResponse;
+
+      const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
+      const match = fullResponseText.match(jsonRegex);
+      
+      let planText = fullResponseText; // По умолчанию, весь ответ - это текст
+      
+      if (match && match[1]) {
+        try {
+          const plan = JSON.parse(match[1]);
+          setGeneratedPlan(plan);
+          // Убираем JSON-блок из текстового ответа, который покажем в чате
+          planText = fullResponseText.replace(jsonRegex, '').trim();
+        } catch (e) {
+          console.error("Ошибка парсинга плана:", e);
+          planText = "Не удалось обработать сгенерированный план. Попробуйте снова.";
+        }
+      } else {
+        // Если AI не вернул JSON, просто показываем его текстовый ответ
+        console.warn("AI did not return a JSON plan.");
+      }
+
+      // Обновляем чат отформатированным текстом
+      setMessages(prev => [...prev, { id: Date.now() + 1, text: planText, sender: 'ai' }]);
+    } catch (error) {
+      console.error(error);
+      setMessages(prev => [...prev, { id: Date.now() + 1, text: "Не удалось сгенерировать план.", sender: 'ai' }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   
   // НОВАЯ ФУНКЦИЯ для утверждения плана
   const approvePlan = async () => {
@@ -371,6 +422,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     startCoursePlanning,
     teacherCourses,
     loadCourses,
+    planningMessages, 
+    sendPlanningMessage,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
