@@ -222,5 +222,5 @@ export const useChat = ({ nodes, edges, activeProjectId, setNodes, setEdges, mes
     }
   };
 
-  return { messages, isLoading, sendMessage, saveCurrentProject, promptSuggestions,  setPromptSuggestions, };
+  return { messages, isLoading, setIsLoading, sendMessage, saveCurrentProject, promptSuggestions,  setPromptSuggestions, };
 };

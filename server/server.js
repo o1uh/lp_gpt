@@ -10,7 +10,7 @@ const authMiddleware = require('./middleware/authMiddleware.js');
 const authRoutes = require('./routes/authRoutes.js');
 const projectRoutes = require('./routes/projectRoutes.js');
 const teacherRoutes = require('./routes/teacherRoutes.js');
-// const aiRoutes = require('./routes/aiRoutes.js'); // Мы пока не создали этот файл, поэтому закомментируем
+const aiRoutes = require('./routes/aiRoutes.js'); 
 
 // Создаем приложение Express
 const app = express();
@@ -24,7 +24,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', authMiddleware, projectRoutes);
 app.use('/api/teacher', authMiddleware, teacherRoutes);
-// app.use('/api/ai', authMiddleware, aiRoutes); // И этот тоже
+app.use('/api/ai', authMiddleware, aiRoutes); 
 
 // Простой роут для проверки работоспособности
 app.get('/api/health', (req, res) => {

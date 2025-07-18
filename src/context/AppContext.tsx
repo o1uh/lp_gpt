@@ -1,11 +1,14 @@
 import { createContext, useState, useCallback, useContext, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { type Node, type Edge, type OnNodesChange, type OnEdgesChange, type Connection, applyNodeChanges, applyEdgeChanges, addEdge as addEdgeHelper } from 'reactflow';
-import type { Message } from '../types';
+import type { Message, PlanStep, TeacherCourse } from '../types';
 import { useChat } from '../hooks/useChat';
 import { templateBlog, sandboxTasks } from '../components/config/templates';
 import { fetchProjects, fetchProjectById, renameProject, deleteProject } from '../api/projectService';
 import { useAuth } from './AuthContext';
+import { generatePlan } from '../api/aiService';
+import { createCourse, fetchCoursesForKB } from '../api/teacherService';
+
 
 type SandboxTask = typeof sandboxTasks[0];
 export interface Project { // Экспортируем, чтобы использовать в других файлах
@@ -55,6 +58,10 @@ interface AppContextType {
   activeProjectId: number | null;
   renameCurrentProject: () => void;
   deleteCurrentProject: () => void;
+  isPlanning: boolean; // Флаг, что мы в режиме планирования
+  generatedPlan: PlanStep[] | null; // Сгенерированный план
+  approvePlan: () => void; // Функция для утверждения плана
+  startCoursePlanning: (kbId: number, topic: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -70,6 +77,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const { isAuthenticated } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isDirty, setIsDirty] = useState(false);
+  const [isPlanning, setIsPlanning] = useState(false);
+  const [generatedPlan, setGeneratedPlan] = useState<PlanStep[] | null>(null);
+  const [currentTopic, setCurrentTopic] = useState('');
+  const [currentKbId, setCurrentKbId] = useState<number | null>(null);
+  const [teacherCourses, setTeacherCourses] = useState<TeacherCourse[]>([]);
+
   const [confirmationState, setConfirmationState] = useState<ConfirmationStateType>({
     isOpen: false,
     title: '',
@@ -81,7 +94,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     onSave: () => {}, // Пустая функция по умолчанию
   });
 
-  const { isLoading, sendMessage, promptSuggestions, setPromptSuggestions, saveCurrentProject } = useChat({ 
+  const { isLoading, sendMessage, promptSuggestions, setPromptSuggestions, saveCurrentProject, setIsLoading} = useChat({ 
         nodes, 
         edges, 
         activeProjectId,
@@ -121,6 +134,19 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setProjects(data);
     } catch (error) {
       console.error("Ошибка загрузки проектов:", error);
+    }
+  }, [isAuthenticated]);
+
+// НОВАЯ ФУНКЦИЯ для загрузки курсов "Учителя"
+  const loadCourses = useCallback(async (kbId: number) => {
+    if (!isAuthenticated) return;
+    try {
+      const data = await fetchCoursesForKB(kbId);
+      setTeacherCourses(data);
+    } catch (error) {
+      console.error(`Ошибка загрузки курсов для проекта ${kbId}:`, error);
+      // Очищаем список курсов в случае ошибки
+      setTeacherCourses([]); 
     }
   }, [isAuthenticated]);
 
@@ -253,6 +279,45 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       onSaveAndConfirm: undefined, 
     });
   };
+   const startCoursePlanning = async (kbId: number, topic: string) => {
+    setIsPlanning(true);
+    setGeneratedPlan(null); // Очищаем старый план
+    setCurrentTopic(topic);
+    setCurrentKbId(kbId);
+    setMessages([{ id: Date.now(), text: `Генерирую план обучения по теме "${topic}"...`, sender: 'ai' }]);
+    setIsLoading(true);
+    try {
+      const plan = await generatePlan(kbId, topic);
+      setGeneratedPlan(plan);
+      // Формируем красивое сообщение с планом
+      const planText = "Вот предложенный план обучения. Вы можете попросить меня изменить его или утвердить.\n\n" + 
+                       plan.map((step: PlanStep) => `**${step.id}** ${step.title}`).join('\n');
+      setMessages(prev => [...prev, { id: Date.now() + 1, text: planText, sender: 'ai' }]);
+    } catch (error) {
+      console.error(error);
+      setMessages(prev => [...prev, { id: Date.now() + 1, text: "Не удалось сгенерировать план.", sender: 'ai' }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // НОВАЯ ФУНКЦИЯ для утверждения плана
+  const approvePlan = async () => {
+    if (!generatedPlan || !currentKbId) return;
+    setIsLoading(true);
+    try {
+      await createCourse(currentKbId, currentTopic, generatedPlan);
+      setIsPlanning(false);
+      setGeneratedPlan(null);
+      await loadCourses(currentKbId); 
+      alert("Курс успешно создан! Можете приступать к обучению.");
+    } catch (error) {
+      console.error(error);
+      alert("Не удалось сохранить курс.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const value = {
     nodes,
@@ -281,6 +346,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     activeProjectId,
     renameCurrentProject,
     deleteCurrentProject,
+    isPlanning,
+    generatedPlan,
+    approvePlan,
+    startCoursePlanning,
+    teacherCourses,
+    loadCourses,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -4,7 +4,7 @@ import { Modal } from '../ui/Modal';
 import { useAppContext, type Project } from '../../context/AppContext';
 import type { TeacherProject, TeacherCourse } from '../../types';
 import { NewCourseModal } from '../ui/NewCourseModal';
-import { fetchKnowledgeBases, fetchCoursesForKB, createCourse } from '../../api/teacherService';
+import { fetchKnowledgeBases, fetchCoursesForKB } from '../../api/teacherService';
 
 type ViewState = 
   | { level: 'projects' }
@@ -21,27 +21,17 @@ interface ContentPanelProps {
   onTabChange: (tab: Tab) => void;
 }
 
-// Фейковые данные для режима обучения
-// const teacherProjects: TeacherProject[] = [
-//   { id: 101, name: "Проект 'Architect Trainer'" },
-//   { id: 102, name: "Проект 'CRM-система'" },
-// ];
-
-// const teacherCourses: { [projectId: number]: TeacherCourse[] } = {
-//   101: [ { id: 201, name: "База данных (v1)" }, { id: 202, name: "Авторизация (v1)" } ],
-//   102: [],
-// };
-
-
-
 export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
-  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId } = useAppContext(); 
+  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId, startCoursePlanning } = useAppContext(); 
+  
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
-  const [teacherView, setTeacherView] = useState<ViewState>({ level: 'projects' });
-  const [studyProjects, setStudyProjects] = useState<TeacherProject[]>([]); // Новое состояние
+  
+  const [studyProjects, setStudyProjects] = useState<TeacherProject[]>([]);
   const [teacherCourses, setTeacherCourses] = useState<TeacherCourse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  
+  const [teacherView, setTeacherView] = useState<ViewState>({ level: 'projects' });
 
 
   useEffect(() => {
@@ -85,15 +75,8 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
 
   const handleCreateCourse = async (topic: string) => {
     if (teacherView.level !== 'courses') return; // Защита
-    
-    try {
-      const newCourseData = await createCourse(teacherView.knowledgeBaseId, topic);
-      setTeacherCourses(prev => [...prev, newCourseData.course]);
-      setIsCourseModalOpen(false);
-    } catch (error) {
-      console.error("Ошибка создания курса:", error);
-      alert("Не удалось создать курс");
-    }
+    startCoursePlanning(teacherView.knowledgeBaseId, topic);
+    setIsCourseModalOpen(false);
   };
 
   const handleTabChange = (tab: 'assistant' | 'teacher' | 'examiner') => {

@@ -19,3 +19,8 @@ export interface TeacherStep {
   name: string;
   status: 'locked' | 'unlocked' | 'completed';
 }
+
+export interface PlanStep {
+  id: string;
+  title: string;
+}

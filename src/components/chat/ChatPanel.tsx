@@ -11,7 +11,7 @@ interface ChatPanelProps {
 }
 
 export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => {
-  const { messages, sendMessage, isLoading, promptSuggestions, activeProjectName, activeProjectId, renameCurrentProject, deleteCurrentProject  } = useAppContext();
+  const { messages, sendMessage, isLoading, promptSuggestions, activeProjectName, activeProjectId, renameCurrentProject, deleteCurrentProject, isPlanning, approvePlan  } = useAppContext();
   const [inputValue, setInputValue] = useState('');
   const chatEndRef = useRef<null | HTMLDivElement>(null);
 
@@ -97,25 +97,41 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel }: ChatPanelProps) => 
       </div>
 
       <div className="mt-4">
+        {/* НОВОЕ: Показываем кнопку "Утвердить", если есть план */}
+        {isPlanning && (
+          <div className="mb-4 text-center">
+            <button 
+              onClick={approvePlan}
+              disabled={isLoading}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-semibold disabled:bg-gray-500"
+            >
+              Утвердить этот план и начать обучение
+            </button>
+          </div>
+        )}
         <PromptSuggestions 
           suggestions={promptSuggestions} 
           onSuggestionClick={handleSuggestionClick} 
         />
         <div className="relative flex items-start">
           <TextareaAutosize
-            placeholder={isLoading ? "AI думает..." : "Задайте ваш вопрос... (Ctrl+Enter для отправки)"}
+             placeholder={
+              isLoading ? "AI думает..." 
+              : isPlanning ? "Обсудите или утвердите план..." 
+              : "Задайте ваш вопрос... (Ctrl+Enter для отправки)"
+            }
+            disabled={isLoading || isPlanning}
             className="w-full p-3 pr-12 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyPress}
-            disabled={isLoading}
             minRows={1}
             maxRows={6}
           />
           <button
             onClick={handleSendMessageClick}
             className="absolute right-2 bottom-2 p-2 rounded-lg text-gray-400 hover:bg-gray-600 hover:text-white transition-colors"
-            disabled={isLoading}
+            disabled={isLoading || isPlanning}
             title="Отправить (Ctrl+Enter)"
           >
             <Send size={20} />

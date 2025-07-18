@@ -1,4 +1,4 @@
-import type { TeacherProject, TeacherCourse } from '../types';
+import type { TeacherProject, TeacherCourse, PlanStep } from '../types';
 
 // Вспомогательная функция для заголовков
 const getAuthHeaders = () => {
@@ -29,11 +29,12 @@ export const fetchCoursesForKB = async (kbId: number): Promise<TeacherCourse[]> 
     return response.json();
 };
 
-export const createCourse = async (kbId: number, topic: string): Promise<{ course: TeacherCourse }> => {
+export const createCourse = async (kbId: number, topic: string, plan: PlanStep[]): Promise<{ course: TeacherCourse }> => {
     const response = await fetch(`${API_URL}/knowledge-bases/${kbId}/courses`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ topic }),
+        // 3. Передаем `plan` в теле запроса
+        body: JSON.stringify({ topic, plan }),
     });
     if (!response.ok) {
         throw new Error('Не удалось создать курс');
