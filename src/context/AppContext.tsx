@@ -64,6 +64,7 @@ interface AppContextType {
   startCoursePlanning: (kbId: number, topic: string) => void;
   planningMessages: Message[]; 
   sendPlanningMessage: (text: string) => void;
+  currentTopic: string;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -374,16 +375,31 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   
-  // НОВАЯ ФУНКЦИЯ для утверждения плана
   const approvePlan = async () => {
     if (!generatedPlan || !currentKbId) return;
     setIsLoading(true);
     try {
+      // 1. Сохраняем курс и план в БД
       await createCourse(currentKbId, currentTopic, generatedPlan);
+      
+      // 2. Выходим из режима планирования
       setIsPlanning(false);
       setGeneratedPlan(null);
+      
+      // 3. Обновляем список курсов в левой панели
       await loadCourses(currentKbId); 
-      alert("Курс успешно создан! Можете приступать к обучению.");
+      
+      // 4. Очищаем чат и превращаем его в чат для общих вопросов
+      setPlanningMessages([
+        { 
+          id: Date.now(), 
+          text: `План по теме "${currentTopic}" утвержден. Теперь вы можете задавать общие вопросы по этой теме или выбрать конкретный шаг для изучения в панели слева.`, 
+          sender: 'ai' 
+        }
+      ]);
+
+      alert("Курс успешно создан! План утвержден.");
+
     } catch (error) {
       console.error(error);
       alert("Не удалось сохранить курс.");
@@ -427,6 +443,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     loadCourses,
     planningMessages, 
     sendPlanningMessage,
+    currentTopic
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

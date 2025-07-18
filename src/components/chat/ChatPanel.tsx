@@ -25,6 +25,8 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel, activeTab }: ChatPane
     approvePlan,
     planningMessages, 
     sendPlanningMessage,
+    currentTopic,
+    
     } = useAppContext();
   const [inputValue, setInputValue] = useState('');
   const chatEndRef = useRef<null | HTMLDivElement>(null);
@@ -71,8 +73,8 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel, activeTab }: ChatPane
         >
           {isPanelVisible ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
         </button>
-        <h2 className="text-xl font-bold truncate" title={activeProjectName}>
-          {isInPlanningMode ? `Планирование: ${activeProjectName}` : activeProjectName}
+        <h2 className="text-xl font-bold truncate" title={currentTopic}>
+          {isInPlanningMode ? `Планирование: ${currentTopic}` : activeProjectName}
         </h2>
         {activeProjectId && (
           <div className="flex items-center gap-x-2 ml-auto">
@@ -128,10 +130,12 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel, activeTab }: ChatPane
             </button>
           </div>
         )}
-        <PromptSuggestions 
-          suggestions={promptSuggestions} 
-          onSuggestionClick={handleSuggestionClick} 
-        />
+        {!isPlanning && (
+          <PromptSuggestions 
+            suggestions={promptSuggestions} 
+            onSuggestionClick={handleSuggestionClick} 
+          />
+        )}
         <div className="relative flex items-start">
           <TextareaAutosize
              placeholder={
