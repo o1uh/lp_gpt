@@ -7,7 +7,7 @@ import { templateBlog, sandboxTasks } from '../components/config/templates';
 import { fetchProjects, fetchProjectById, renameProject, deleteProject } from '../api/projectService';
 import { useAuth } from './AuthContext';
 import { getPlanUpdate } from '../api/aiService';
-import { createCourse, fetchCoursesForKB } from '../api/teacherService';
+import { createCourse, fetchCoursesForKB, approveCoursePlan } from '../api/teacherService';
 
 
 type SandboxTask = typeof sandboxTasks[0];
@@ -65,6 +65,8 @@ interface AppContextType {
   planningMessages: Message[]; 
   sendPlanningMessage: (text: string) => void;
   currentTopic: string;
+  teacherCourses: TeacherCourse[]; 
+  loadCourses: (kbId: number) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -86,6 +88,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [currentKbId, setCurrentKbId] = useState<number | null>(null);
   const [teacherCourses, setTeacherCourses] = useState<TeacherCourse[]>([]);
   const [planningMessages, setPlanningMessages] = useState<Message[]>([]);
+  const [activeCourseId, setActiveCourseId] = useState<number | null>(null);
 
   const [confirmationState, setConfirmationState] = useState<ConfirmationStateType>({
     isOpen: false,
@@ -283,17 +286,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       onSaveAndConfirm: undefined, 
     });
   };
-  const startCoursePlanning = async (kbId: number, topic: string) => {
-    setIsPlanning(true);
-    setGeneratedPlan(null);
-    setCurrentTopic(topic);
-    setCurrentKbId(kbId);
-
-    setMessages([]); 
-    setPlanningMessages([{ id: Date.now(), text: `Генерирую план обучения по теме "${topic}"...`, sender: 'ai' }]);
-    
-    setIsLoading(true);
+  
+   const startCoursePlanning = async (kbId: number, topic: string) => {
+    // 1. СРАЗУ создаем курс в БД
     try {
+      const newCourseData = await createCourse(kbId, topic);
+      const newCourse = newCourseData.course;
+      
+      // 2. СРАЗУ обновляем список курсов, чтобы пользователь увидел новый
+      await loadCourses(kbId); 
+
+      // 3. Устанавливаем ID и тему как активные
+      setActiveCourseId(newCourse.id);
+      setCurrentTopic(newCourse.name);
+      setCurrentKbId(kbId);
+      
+      // 4. Переходим в режим планирования и генерируем ПЕРВЫЙ вариант плана
+      setIsPlanning(true);
+      setGeneratedPlan(null);
+      setPlanningMessages([{ id: Date.now(), text: `Генерирую план обучения по теме "${topic}"...`, sender: 'ai' }]);
+      setIsLoading(true)
+      
       const response = await getPlanUpdate(kbId, topic, []);
       const fullResponseText = response.fullResponse;
 
@@ -374,22 +387,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  
   const approvePlan = async () => {
-    if (!generatedPlan || !currentKbId) return;
+    if (!generatedPlan || !activeCourseId) return;
     setIsLoading(true);
     try {
-      // 1. Сохраняем курс и план в БД
-      await createCourse(currentKbId, currentTopic, generatedPlan);
+      // 5. Отправляем финальный план на новый эндпоинт
+      await approveCoursePlan(activeCourseId, generatedPlan);
       
-      // 2. Выходим из режима планирования
       setIsPlanning(false);
       setGeneratedPlan(null);
       
-      // 3. Обновляем список курсов в левой панели
-      await loadCourses(currentKbId); 
-      
-      // 4. Очищаем чат и превращаем его в чат для общих вопросов
+      // 6. Трансформируем чат в Q&A
       setPlanningMessages([
         { 
           id: Date.now(), 
@@ -397,9 +405,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           sender: 'ai' 
         }
       ]);
-
-      alert("Курс успешно создан! План утвержден.");
-
+      
+      // TODO: Загрузить шаги и переключить ContentPanel в view 'steps'
+      alert("Курс успешно утвержден!");
     } catch (error) {
       console.error(error);
       alert("Не удалось сохранить курс.");

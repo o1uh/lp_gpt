@@ -84,6 +84,7 @@ const createTables = () => {
           user_id INTEGER NOT NULL, -- Кто создал/проходит курс
           topic TEXT NOT NULL, -- Тема, введенная пользователем
           plan_json TEXT, -- Здесь будет храниться сгенерированный AI план
+          status TEXT NOT NULL DEFAULT 'planning',
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (kb_id) REFERENCES knowledge_bases(id) ON DELETE CASCADE,
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

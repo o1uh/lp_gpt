@@ -4,7 +4,7 @@ import { Modal } from '../ui/Modal';
 import { useAppContext, type Project } from '../../context/AppContext';
 import type { TeacherProject, TeacherCourse } from '../../types';
 import { NewCourseModal } from '../ui/NewCourseModal';
-import { fetchKnowledgeBases, fetchCoursesForKB } from '../../api/teacherService';
+import { fetchKnowledgeBases } from '../../api/teacherService';
 
 type ViewState = 
   | { level: 'projects' }
@@ -22,40 +22,42 @@ interface ContentPanelProps {
 }
 
 export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
-  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId, startCoursePlanning } = useAppContext(); 
+  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId, startCoursePlanning, loadCourses, teacherCourses } = useAppContext(); 
   
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   
   const [studyProjects, setStudyProjects] = useState<TeacherProject[]>([]);
-  const [teacherCourses, setTeacherCourses] = useState<TeacherCourse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   
   const [teacherView, setTeacherView] = useState<ViewState>({ level: 'projects' });
 
 
   useEffect(() => {
-    return () => {setTeacherView({ level: 'projects' });}
+    if (activeTab !== 'teacher') {
+      setTeacherView({ level: 'projects' });
+    }
   }, [activeTab]);
 
   useEffect(() => {
     if (activeTab !== 'teacher') return;
+
     const loadData = async () => {
       setIsLoading(true);
       try {
         if (teacherView.level === 'projects') {
-          const data = await fetchKnowledgeBases(); // Вызываем новый сервис
+          const data = await fetchKnowledgeBases();
           setStudyProjects(data);
         } else if (teacherView.level === 'courses') {
-          const data = await fetchCoursesForKB(teacherView.knowledgeBaseId);
-          setTeacherCourses(data);
+          // 3. Вызываем `loadCourses` из контекста, он сам обновит `teacherCourses`
+          await loadCourses(teacherView.knowledgeBaseId);
         }
       } catch (error) {
         console.error("Ошибка загрузки данных для обучения:", error);
       } finally { setIsLoading(false); }
     };
     loadData();
-  }, [activeTab, teacherView]);
+  }, [activeTab, teacherView, loadCourses]);
 
   const handleOpenCreateProjectModal = () => {
     navigateWithDirtyCheck(
@@ -178,7 +180,7 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
                 </h2>
                 <ul className="space-y-2">
                   {courses.length > 0 ? (
-                    courses.map(course => (
+                    courses.map((course: TeacherCourse)  => (
                       <li key={course.id}>
                         <button 
                           onClick={() => {

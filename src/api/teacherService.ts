@@ -29,15 +29,24 @@ export const fetchCoursesForKB = async (kbId: number): Promise<TeacherCourse[]> 
     return response.json();
 };
 
-export const createCourse = async (kbId: number, topic: string, plan: PlanStep[]): Promise<{ course: TeacherCourse }> => {
+export const createCourse = async (kbId: number, topic: string): Promise<{ course: TeacherCourse }> => {
     const response = await fetch(`${API_URL}/knowledge-bases/${kbId}/courses`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        // 3. Передаем `plan` в теле запроса
-        body: JSON.stringify({ topic, plan }),
+        body: JSON.stringify({ topic }), // Отправляем только тему
     });
     if (!response.ok) {
         throw new Error('Не удалось создать курс');
     }
+    return response.json();
+};
+
+export const approveCoursePlan = async (courseId: number, plan: PlanStep[]) => {
+    const response = await fetch(`${API_URL}/courses/${courseId}/approve`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ plan }),
+    });
+    if (!response.ok) throw new Error('Не удалось утвердить план');
     return response.json();
 };

@@ -15,44 +15,46 @@ router.get('/knowledge-bases', (req, res) => {
 });
 
 // GET /api/teacher/knowledge-bases/:kbId/courses - Получить список курсов для конкретной БЗ
-// TODO: Заменить фейковые данные на реальные запросы к таблице `courses`
 router.get('/knowledge-bases/:kbId/courses', (req, res) => {
   const kbId = parseInt(req.params.kbId, 10);
+  const userId = req.user.userId; // Мы получаем пользователя из middleware
   
-  // Фейковые данные (заглушка), пока мы не создали таблицу курсов
-  const coursesData = {
-    1: [ { id: 201, name: "База данных (v1)" }, { id: 202, name: "Авторизация (v1)" } ],
-    2: [ { id: 301, name: "Платежные шлюзы" } ],
-  };
-
-  res.json(coursesData[kbId] || []);
+  const sql = 'SELECT id, topic as name FROM courses WHERE kb_id = ? AND user_id = ? ORDER BY created_at DESC';
+  
+  db.all(sql, [kbId, userId], (err, rows) => {
+    if (err) return res.status(500).json({ error: 'Ошибка сервера' });
+    res.json(rows);
+  });
 });
 
-// POST /api/teacher/knowledge-bases/:kbId/courses - Создать новый курс с готовым планом
+// POST /api/teacher/knowledge-bases/:kbId/courses - Создать новый курс (без плана)
 router.post('/knowledge-bases/:kbId/courses', (req, res) => {
   const kbId = parseInt(req.params.kbId, 10);
-  // Теперь мы ожидаем и тему, и план
-  const { topic, plan } = req.body;
+  const { topic } = req.body;
+  const userId = req.user.userId;
+  // Теперь эта функция создает курс со статусом 'planning' и БЕЗ плана
+  const sql = `INSERT INTO courses (kb_id, user_id, topic, status) VALUES (?, ?, ?, 'planning')`;
+  
+  db.run(sql, [kbId, userId, topic], function(err) {
+    if (err) return res.status(500).json({ error: 'Ошибка сервера' });
+    res.status(201).json({ course: { id: this.lastID, name: topic } });
+  });
+});
+
+// НОВЫЙ ЭНДПОИНТ: PUT /api/teacher/courses/:courseId/approve - Утвердить план
+router.put('/courses/:courseId/approve', (req, res) => {
+  const courseId = parseInt(req.params.courseId, 10);
+  const { plan } = req.body;
   const userId = req.user.userId;
 
-  if (!topic || !plan) {
-    return res.status(400).json({ error: "Не указана тема или план курса" });
-  }
-  
+  // TODO: Добавить проверку, что курс принадлежит userId
+
   const planJson = JSON.stringify(plan);
-  const sql = `INSERT INTO courses (kb_id, user_id, topic, plan_json) VALUES (?, ?, ?, ?)`;
+  const sql = `UPDATE courses SET plan_json = ?, status = 'approved' WHERE id = ?`;
   
-  db.run(sql, [kbId, userId, topic, planJson], function(err) {
-    if (err) {
-      console.error(err.message);
-      return res.status(500).json({ error: 'Ошибка сервера при сохранении курса' });
-    }
-    
-    const courseId = this.lastID;
-    res.status(201).json({ 
-      message: "Курс и план успешно сохранены.",
-      course: { id: courseId, name: topic }
-    });
+  db.run(sql, [planJson, courseId], function(err) {
+    if (err) return res.status(500).json({ error: 'Ошибка сохранения плана' });
+    res.status(200).json({ message: 'План успешно утвержден' });
   });
 });
 
