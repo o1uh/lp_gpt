@@ -22,7 +22,7 @@ interface ContentPanelProps {
 }
 
 export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
-  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId, startCoursePlanning, loadCourses, teacherCourses, loadCourse } = useAppContext(); 
+  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId, startCoursePlanning, loadCourses, teacherCourses, loadCourse, generatedPlan  } = useAppContext(); 
   
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
@@ -214,20 +214,44 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
             );
           } 
 
-          case 'steps': { 
-            if (teacherView.level !== 'steps') return null; 
+          case 'steps': {
+            if (teacherView.level !== 'steps') return null;
             return (
-                <div className="flex justify-between items-center mb-4">
-                    <button 
-                      onClick={() => setTeacherView({ level: 'courses', knowledgeBaseId: teacherView.knowledgeBaseId, projectName: teacherView.projectName })}
-                      className="flex items-center gap-x-1 text-sm text-gray-400 hover:text-white"
-                    >
-                      <ArrowLeft size={16} />
-                      Курсы
+              <div className="flex flex-col h-full">
+                {/* --- НОВЫЙ ИНТЕРФЕЙС --- */}
+                {/* 1. Верхний, НЕпрокручиваемый блок */}
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <button onClick={() => setTeacherView({ level: 'courses', knowledgeBaseId: teacherView.knowledgeBaseId, projectName: teacherView.projectName })}
+                     className="flex items-center gap-x-1 text-sm text-gray-400 hover:text-white">
+                      <ArrowLeft size={16} /> Курсы
                     </button>
+                  </div>
+                  <h2 className="text-xs font-bold ...">КУРС: {teacherView.courseName}</h2>
+                  {/* Кнопка для главного чата */}
+                  <button className="w-full text-left flex items-center gap-x-2 p-2 rounded bg-gray-700/50 text-white mt-2">
+                    <MessageSquare size={16} /> <span>Главный чат</span>
+                  </button>
+                  <hr className="border-gray-700 my-4"/>
+                  <h2 className="text-xs font-bold text-gray-400 uppercase mb-2">Шаги урока</h2>
                 </div>
-            )
-          } 
+                
+                {/* 2. Нижний, прокручиваемый блок */}
+                <div className="flex-grow overflow-y-auto pr-2">
+                  <ul className="space-y-2">
+                    {/* Рендерим шаги из `generatedPlan` */}
+                    {generatedPlan && generatedPlan.map(step => (
+                      <li key={step.id}>
+                        <button className="w-full text-left flex items-center gap-x-2 p-2 rounded text-gray-500 cursor-not-allowed">
+                          <span>{step.id} {step.title}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            );
+          }
         }
         return null;
       case 'examiner':

@@ -1,4 +1,4 @@
-import type { TeacherProject, TeacherCourse, PlanStep , Message} from '../types';
+import type { TeacherProject, TeacherCourse, PlanStep, Message } from '../types';
 
 // Вспомогательная функция для заголовков
 const getAuthHeaders = () => {
@@ -11,6 +11,16 @@ const getAuthHeaders = () => {
 };
 
 const API_URL = 'http://localhost:3001/api/teacher';
+
+interface CourseDataPayload {
+  course: {
+    id: number;
+    topic: string;
+    status: 'planning' | 'approved';
+    plan: PlanStep[];
+  };
+  messages: Message[];
+}
 
 export const fetchKnowledgeBases = async (): Promise<TeacherProject[]> => {
     const response = await fetch(`${API_URL}/knowledge-bases`, { headers: getAuthHeaders() });
@@ -51,9 +61,9 @@ export const approveCoursePlan = async (courseId: number, plan: PlanStep[]) => {
     return response.json();
 };
 
-export const fetchCourseMessages = async (courseId: number): Promise<Message[]> => {
-    const response = await fetch(`${API_URL}/courses/${courseId}/messages`, { headers: getAuthHeaders() });
-    if (!response.ok) throw new Error('Не удалось загрузить сообщения курса');
+export const fetchCourseData = async (courseId: number): Promise<CourseDataPayload> => {
+    const response = await fetch(`${API_URL}/courses/${courseId}`, { headers: getAuthHeaders() });
+    if (!response.ok) throw new Error('Не удалось загрузить данные курса');
     return response.json();
 };
 

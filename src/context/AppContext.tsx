@@ -7,7 +7,7 @@ import { templateBlog, sandboxTasks } from '../components/config/templates';
 import { fetchProjects, fetchProjectById, renameProject, deleteProject } from '../api/projectService';
 import { useAuth } from './AuthContext';
 import { getPlanUpdate } from '../api/aiService';
-import { createCourse, fetchCoursesForKB, approveCoursePlan, fetchCourseMessages, sendCourseMessage   } from '../api/teacherService';
+import { createCourse, fetchCoursesForKB, approveCoursePlan, fetchCourseData, sendCourseMessage   } from '../api/teacherService';
 
 
 type SandboxTask = typeof sandboxTasks[0];
@@ -449,11 +449,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const loadCourse = async (courseId: number) => {
     try {
         setIsLoading(true);
-        const courseMessages = await fetchCourseMessages(courseId);
-        setActiveCourseMessages(courseMessages);
-        console.log("ПОЛУЧЕНО:", courseMessages);
+        const { course, messages } = await fetchCourseData(courseId)
+        setActiveCourseMessages(messages);
         setActiveCourseId(courseId);
         // TODO: Загрузить шаги и план
+        if (course.status === 'planning') {
+        setIsPlanning(true);
+        setGeneratedPlan(course.plan || []);
+      } else { // 'approved'
+        setIsPlanning(false);
+        setGeneratedPlan(course.plan || []);
+      }
     } catch (error) {
         console.error("Ошибка загрузки курса:", error);
     } finally {

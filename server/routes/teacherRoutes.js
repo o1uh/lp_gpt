@@ -58,14 +58,31 @@ router.put('/courses/:courseId/approve', (req, res) => {
   });
 });
 
-// GET /api/teacher/courses/:courseId/messages - Получить сообщения главного чата
-router.get('/courses/:courseId/messages', (req, res) => {
+// GET /api/teacher/courses/:courseId - Получить полную (почти) информацию о курсе
+router.get('/courses/:courseId', (req, res) => {
     // TODO: Добавить проверку владения курсом
     const courseId = req.params.courseId;
-    const sql = 'SELECT id, sender, content as text FROM course_messages WHERE course_id = ? ORDER BY timestamp ASC';
-    db.all(sql, [courseId], (err, rows) => {
+
+    const courseSql = 'SELECT * FROM courses WHERE id = ?';
+    const messagesSql = 'SELECT id, sender, content as text FROM course_messages WHERE course_id = ? ORDER BY timestamp ASC';
+
+    db.get(courseSql, [courseId], (err, course) => {
         if (err) return res.status(500).json({ error: 'Ошибка сервера' });
-        res.json(rows);
+        if (!course) return res.status(404).json({ error: 'Курс не найден' });
+
+        db.all(messagesSql, [courseId], (err, messages) => {
+            if (err) return res.status(500).json({ error: 'Ошибка сервера' });
+            
+            res.json({
+                course: {
+                    id: course.id,
+                    topic: course.topic,
+                    status: course.status,
+                    plan: JSON.parse(course.plan_json || '[]')
+                },
+                messages: messages
+            });
+        });
     });
 });
 
