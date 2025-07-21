@@ -7,7 +7,7 @@ import { templateBlog, sandboxTasks } from '../components/config/templates';
 import { fetchProjects, fetchProjectById, renameProject, deleteProject } from '../api/projectService';
 import { useAuth } from './AuthContext';
 import { getPlanUpdate } from '../api/aiService';
-import { createCourse, fetchCoursesForKB, approveCoursePlan } from '../api/teacherService';
+import { createCourse, fetchCoursesForKB, approveCoursePlan, fetchCourseMessages, sendCourseMessage   } from '../api/teacherService';
 
 
 type SandboxTask = typeof sandboxTasks[0];
@@ -62,11 +62,12 @@ interface AppContextType {
   generatedPlan: PlanStep[] | null; // Сгенерированный план
   approvePlan: () => void; // Функция для утверждения плана
   startCoursePlanning: (kbId: number, topic: string) => void;
-  planningMessages: Message[]; 
-  sendPlanningMessage: (text: string) => void;
   currentTopic: string;
   teacherCourses: TeacherCourse[]; 
   loadCourses: (kbId: number) => Promise<void>;
+  activeCourseMessages: Message[];
+  loadCourse: (courseId: number) => void; 
+  sendTeacherMessage: (text: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -87,8 +88,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [currentTopic, setCurrentTopic] = useState('');
   const [currentKbId, setCurrentKbId] = useState<number | null>(null);
   const [teacherCourses, setTeacherCourses] = useState<TeacherCourse[]>([]);
-  const [planningMessages, setPlanningMessages] = useState<Message[]>([]);
   const [activeCourseId, setActiveCourseId] = useState<number | null>(null);
+  const [activeCourseMessages, setActiveCourseMessages] = useState<Message[]>([]);
 
   const [confirmationState, setConfirmationState] = useState<ConfirmationStateType>({
     isOpen: false,
@@ -288,38 +289,45 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
   
    const startCoursePlanning = async (kbId: number, topic: string) => {
-    // 1. СРАЗУ создаем курс в БД
+    await loadCourses(kbId);
+    setIsPlanning(true);
+    setGeneratedPlan(null);
+    setCurrentTopic(topic);
+    setCurrentKbId(kbId);
+    
+    // 1. Создаем новый курс в БД СРАЗУ
+    let newCourseId: number | null = null;
     try {
       const newCourseData = await createCourse(kbId, topic);
-      const newCourse = newCourseData.course;
-      
-      // 2. СРАЗУ обновляем список курсов, чтобы пользователь увидел новый
-      await loadCourses(kbId); 
+      newCourseId = newCourseData.course.id;
+      setActiveCourseId(newCourseId); // Сразу делаем его активным
+      await loadCourses(kbId); // Обновляем список слева
+    } catch (e) {
+      alert("Не удалось создать курс в базе данных.");
+      console.error(e);
+      setIsPlanning(false);
+      return;
+    }
 
-      // 3. Устанавливаем ID и тему как активные
-      setActiveCourseId(newCourse.id);
-      setCurrentTopic(newCourse.name);
-      setCurrentKbId(kbId);
-      
-      // 4. Переходим в режим планирования и генерируем ПЕРВЫЙ вариант плана
-      setIsPlanning(true);
-      setGeneratedPlan(null);
-      setPlanningMessages([{ id: Date.now(), text: `Генерирую план обучения по теме "${topic}"...`, sender: 'ai' }]);
-      setIsLoading(true)
-      
-      const response = await getPlanUpdate(kbId, topic, []);
+    // 2. Устанавливаем и сохраняем сообщение "Генерирую..."
+    const generatingMessage: Message = { id: Date.now(), text: `Генерирую план обучения по теме "${topic}"...`, sender: 'ai' };
+    setActiveCourseMessages([generatingMessage]);
+    await sendCourseMessage(newCourseId, { sender: 'ai', text: generatingMessage.text });
+    
+    setIsLoading(true);
+    try {
+      // 3. Генерируем план
+      const response = await getPlanUpdate(kbId, topic, []); // История пока пустая
       const fullResponseText = response.fullResponse;
-
       const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
       const match = fullResponseText.match(jsonRegex);
       
-      let planText = fullResponseText; // По умолчанию, весь ответ - это текст
+      let planText = fullResponseText;
       
       if (match && match[1]) {
         try {
           const plan = JSON.parse(match[1]);
           setGeneratedPlan(plan);
-          // Убираем JSON-блок из текстового ответа, который покажем в чате
           planText = fullResponseText.replace(jsonRegex, '').trim();
         } catch (e) {
           console.error("Ошибка парсинга плана:", e);
@@ -330,33 +338,47 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         console.warn("AI did not return a JSON plan.");
       }
 
-      // Обновляем чат отформатированным текстом
-      setPlanningMessages(prev => [...prev, { id: Date.now() + 1, text: planText, sender: 'ai' }]);
+      // 4. Создаем и СОХРАНЯЕМ сообщение с планом
+      const planMessage: Message = { id: Date.now() + 1, text: planText, sender: 'ai' };
+      await sendCourseMessage(newCourseId, { sender: 'ai', text: planMessage.text });
+
+      // 5. Обновляем UI финальным сообщением
+      setActiveCourseMessages(prev => [...prev, planMessage]);
+
     } catch (error) {
       console.error(error);
-      setPlanningMessages(prev => [...prev, { id: Date.now() + 1, text: "Не удалось сгенерировать план.", sender: 'ai' }]);
+      const errorMessage: Message = { id: Date.now() + 1, text: "Не удалось сгенерировать план.", sender: 'ai' };
+      await sendCourseMessage(newCourseId, { sender: 'ai', text: errorMessage.text });
+      setActiveCourseMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
 
 // Новая функция для продолжения диалога
-  const sendPlanningMessage = async (text: string) => {
-    if (!currentKbId || !currentTopic) return;
+  const sendTeacherMessage = async (text: string) => {
+    if (!activeCourseId || !currentKbId || !currentTopic) return; 
 
     const userMessage: Message = { id: Date.now(), text, sender: 'user' };
-    setPlanningMessages(prev => [...prev, userMessage]);
+    
+    // 1. Создаем обновленный массив сообщений и СРАЗУ используем его
+    const updatedMessages = [...activeCourseMessages, userMessage];
+    setActiveCourseMessages(updatedMessages); // Обновляем UI
     setIsLoading(true);
 
-    const historyForAPI: HistoryItem[] = [...planningMessages, userMessage].map(msg => ({
-      role: msg.sender === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.text }],
-    }));
-
     try {
-        const response = await getPlanUpdate(currentKbId, currentTopic, historyForAPI);
-        const fullResponseText = response.fullResponse;
+      // 2. Сохраняем сообщение пользователя в БД
+      await sendCourseMessage(activeCourseId, { sender: 'user', text });
 
+      // 3. Формируем историю из этого же, уже обновленного массива
+      const historyForAPI: HistoryItem[] = updatedMessages.map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.text }],
+      }));
+
+      // --- Дальше в этой функции ничего не меняется ---
+      const response = await getPlanUpdate(currentKbId, currentTopic, historyForAPI);
+      const fullResponseText = response.fullResponse;
       const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
       const match = fullResponseText.match(jsonRegex);
       
@@ -366,22 +388,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         try {
           const plan = JSON.parse(match[1]);
           setGeneratedPlan(plan);
-          // Убираем JSON-блок из текстового ответа, который покажем в чате
           planText = fullResponseText.replace(jsonRegex, '').trim();
         } catch (e) {
           console.error("Ошибка парсинга плана:", e);
           planText = "Не удалось обработать сгенерированный план. Попробуйте снова.";
         }
       } else {
-        // Если AI не вернул JSON, просто показываем его текстовый ответ
         console.warn("AI did not return a JSON plan.");
       }
+      if (planText) {
+          const aiMessage: Message = { id: Date.now() + 1, text: planText, sender: 'ai' };
 
-      // Обновляем чат отформатированным текстом
-      setMessages(prev => [...prev, { id: Date.now() + 1, text: planText, sender: 'ai' }]);
+          // 4. Сохраняем ответ AI в БД
+          await sendCourseMessage(activeCourseId, { sender: 'ai', text: aiMessage.text });
+          
+          // 5. И только потом обновляем UI финальным сообщением
+          setActiveCourseMessages(prev => [...prev, aiMessage]);
+      }
+
     } catch (error) {
       console.error(error);
-      setMessages(prev => [...prev, { id: Date.now() + 1, text: "Не удалось сгенерировать план.", sender: 'ai' }]);
+      const errorMessage: Message = { id: Date.now() + 1, text: "Не удалось получить ответ от AI.", sender: 'ai' };
+      // Сохраняем сообщение об ошибке в БД
+      await sendCourseMessage(activeCourseId, { sender: 'ai', text: errorMessage.text });
+      setActiveCourseMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -398,7 +428,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setGeneratedPlan(null);
       
       // 6. Трансформируем чат в Q&A
-      setPlanningMessages([
+      setActiveCourseMessages([
         { 
           id: Date.now(), 
           text: `План по теме "${currentTopic}" утвержден. Теперь вы можете задавать общие вопросы по этой теме или выбрать конкретный шаг для изучения в панели слева.`, 
@@ -413,6 +443,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       alert("Не удалось сохранить курс.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadCourse = async (courseId: number) => {
+    try {
+        setIsLoading(true);
+        const courseMessages = await fetchCourseMessages(courseId);
+        setActiveCourseMessages(courseMessages);
+        console.log("ПОЛУЧЕНО:", courseMessages);
+        setActiveCourseId(courseId);
+        // TODO: Загрузить шаги и план
+    } catch (error) {
+        console.error("Ошибка загрузки курса:", error);
+    } finally {
+        setIsLoading(false);
     }
   };
 
@@ -449,9 +494,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     startCoursePlanning,
     teacherCourses,
     loadCourses,
-    planningMessages, 
-    sendPlanningMessage,
-    currentTopic
+    currentTopic,
+    activeCourseMessages,
+    loadCourse,
+    sendTeacherMessage
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

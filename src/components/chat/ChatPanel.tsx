@@ -23,16 +23,16 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel, activeTab }: ChatPane
     deleteCurrentProject, 
     isPlanning, 
     approvePlan,
-    planningMessages, 
-    sendPlanningMessage,
     currentTopic,
+    activeCourseMessages,
+    sendTeacherMessage
     
     } = useAppContext();
   const [inputValue, setInputValue] = useState('');
   const chatEndRef = useRef<null | HTMLDivElement>(null);
   const isInPlanningMode = isPlanning && activeTab === 'teacher';
-  const currentMessages = isInPlanningMode ? planningMessages : messages;
-  const currentSendMessage = isPlanning && activeTab === 'teacher' ? sendPlanningMessage : sendMessage;
+  const currentMessages = activeTab === 'teacher' ? activeCourseMessages : messages;
+  const currentSendMessage = isPlanning && activeTab === 'teacher' ? sendTeacherMessage : sendMessage;
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });

@@ -58,4 +58,28 @@ router.put('/courses/:courseId/approve', (req, res) => {
   });
 });
 
+// GET /api/teacher/courses/:courseId/messages - Получить сообщения главного чата
+router.get('/courses/:courseId/messages', (req, res) => {
+    // TODO: Добавить проверку владения курсом
+    const courseId = req.params.courseId;
+    const sql = 'SELECT id, sender, content as text FROM course_messages WHERE course_id = ? ORDER BY timestamp ASC';
+    db.all(sql, [courseId], (err, rows) => {
+        if (err) return res.status(500).json({ error: 'Ошибка сервера' });
+        res.json(rows);
+    });
+});
+
+// POST /api/teacher/courses/:courseId/messages - Отправить сообщение в главный чат
+router.post('/courses/:courseId/messages', (req, res) => {
+    // TODO: Добавить проверку владения курсом
+    const courseId = req.params.courseId;
+    const { sender, text } = req.body;
+    const sql = 'INSERT INTO course_messages (course_id, sender, content) VALUES (?, ?, ?)';
+    db.run(sql, [courseId, sender, text], function(err) {
+        if (err) return res.status(500).json({ error: 'Ошибка сервера' });
+        // TODO: Здесь будет вызов AI для ответа
+        res.status(201).json({ id: this.lastID });
+    });
+});
+
 module.exports = router;

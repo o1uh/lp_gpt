@@ -1,4 +1,4 @@
-import type { TeacherProject, TeacherCourse, PlanStep } from '../types';
+import type { TeacherProject, TeacherCourse, PlanStep , Message} from '../types';
 
 // Вспомогательная функция для заголовков
 const getAuthHeaders = () => {
@@ -48,5 +48,23 @@ export const approveCoursePlan = async (courseId: number, plan: PlanStep[]) => {
         body: JSON.stringify({ plan }),
     });
     if (!response.ok) throw new Error('Не удалось утвердить план');
+    return response.json();
+};
+
+export const fetchCourseMessages = async (courseId: number): Promise<Message[]> => {
+    const response = await fetch(`${API_URL}/courses/${courseId}/messages`, { headers: getAuthHeaders() });
+    if (!response.ok) throw new Error('Не удалось загрузить сообщения курса');
+    return response.json();
+};
+
+export const sendCourseMessage = async (courseId: number, message: { sender: 'user' | 'ai', text: string }) => {
+    const response = await fetch(`${API_URL}/courses/${courseId}/messages`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(message),
+    });
+    if (!response.ok) {
+        throw new Error('Не удалось сохранить сообщение курса');
+    }
     return response.json();
 };

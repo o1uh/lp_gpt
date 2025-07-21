@@ -106,6 +106,18 @@ const createTables = () => {
         )
       `);
 
+      // НОВАЯ ТАБЛИЦА для сообщений главного чата курса
+      db.run(`
+        CREATE TABLE IF NOT EXISTS course_messages (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          course_id INTEGER NOT NULL,
+          sender TEXT NOT NULL CHECK(sender IN ('user', 'ai')),
+          content TEXT NOT NULL,
+          timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+        )
+      `);
+
 
       const checkAdminSql = 'SELECT id FROM users WHERE id = 1';
       db.get(checkAdminSql, [], (err, row) => {

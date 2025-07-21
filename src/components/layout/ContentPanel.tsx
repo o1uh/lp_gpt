@@ -22,7 +22,7 @@ interface ContentPanelProps {
 }
 
 export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
-  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId, startCoursePlanning, loadCourses, teacherCourses } = useAppContext(); 
+  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId, startCoursePlanning, loadCourses, teacherCourses, loadCourse } = useAppContext(); 
   
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
@@ -96,6 +96,22 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
         ? 'bg-blue-600 text-white'
         : 'text-gray-400 hover:bg-gray-700 hover:text-white'
     }`;
+  };
+
+  const handleCourseClick = (course: TeacherCourse) => {
+      if (teacherView.level === 'courses') {
+        // Загружаем данные курса
+        loadCourse(course.id);
+        // Переключаем вид
+        
+        setTeacherView({ 
+            level: 'steps', 
+            courseId: course.id, 
+            courseName: course.name,
+            knowledgeBaseId: teacherView.knowledgeBaseId, 
+            projectName: teacherView.projectName
+        });
+      }
   };
 
   // Функция для рендеринга контента активной вкладки
@@ -183,12 +199,7 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
                     courses.map((course: TeacherCourse)  => (
                       <li key={course.id}>
                         <button 
-                          onClick={() => {
-                            // Проверяем, что teacherView имеет тип 'courses' перед доступом к projectId
-                            if (teacherView.level === 'courses') {
-                                setTeacherView({ level: 'steps', courseId: course.id, courseName: course.name, knowledgeBaseId: teacherView.knowledgeBaseId, projectName: teacherView.projectName });
-                            }
-                          }}
+                          onClick={() => handleCourseClick(course)}
                           className="w-full text-left flex items-center gap-x-2 p-2 rounded text-gray-300 hover:bg-gray-700 hover:text-white"
                         >
                           <Hash size={16} /> <span>{course.name}</span>
