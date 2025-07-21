@@ -101,7 +101,7 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
   const handleCourseClick = (course: TeacherCourse) => {
       if (teacherView.level === 'courses') {
         // Загружаем данные курса
-        loadCourse(course.id);
+        loadCourse(course.id, teacherView.knowledgeBaseId, teacherView.projectName);
         // Переключаем вид
         
         setTeacherView({ 
@@ -216,6 +216,7 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
 
           case 'steps': {
             if (teacherView.level !== 'steps') return null;
+            const currentCourse = teacherCourses.find(c => c.id === teacherView.courseId);
             return (
               <div className="flex flex-col h-full">
                 {/* --- НОВЫЙ ИНТЕРФЕЙС --- */}
@@ -227,7 +228,7 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
                       <ArrowLeft size={16} /> Курсы
                     </button>
                   </div>
-                  <h2 className="text-xs font-bold ...">КУРС: {teacherView.courseName}</h2>
+                  <h2 className="text-xs font-bold text-gray-400 uppercase mb-2 truncate" title={currentCourse?.name}>КУРС: {currentCourse?.name || teacherView.courseName}</h2>
                   {/* Кнопка для главного чата */}
                   <button className="w-full text-left flex items-center gap-x-2 p-2 rounded bg-gray-700/50 text-white mt-2">
                     <MessageSquare size={16} /> <span>Главный чат</span>

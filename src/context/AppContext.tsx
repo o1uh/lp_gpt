@@ -66,7 +66,7 @@ interface AppContextType {
   teacherCourses: TeacherCourse[]; 
   loadCourses: (kbId: number) => Promise<void>;
   activeCourseMessages: Message[];
-  loadCourse: (courseId: number) => void; 
+  loadCourse: (courseId: number, kbId: number, projectName: string) => void;  
   sendTeacherMessage: (text: string) => void;
 }
 
@@ -90,6 +90,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [teacherCourses, setTeacherCourses] = useState<TeacherCourse[]>([]);
   const [activeCourseId, setActiveCourseId] = useState<number | null>(null);
   const [activeCourseMessages, setActiveCourseMessages] = useState<Message[]>([]);
+  
 
   const [confirmationState, setConfirmationState] = useState<ConfirmationStateType>({
     isOpen: false,
@@ -418,15 +419,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const approvePlan = async () => {
-    if (!generatedPlan || !activeCourseId) return;
+    if (!generatedPlan || !currentKbId || !activeCourseId) return;
     setIsLoading(true);
     try {
       // 5. Отправляем финальный план на новый эндпоинт
       await approveCoursePlan(activeCourseId, generatedPlan);
       
       setIsPlanning(false);
-      setGeneratedPlan(null);
-      
+      // setGeneratedPlan(null);
+      await loadCourses(currentKbId);
       // 6. Трансформируем чат в Q&A
       setActiveCourseMessages([
         { 
@@ -446,26 +447,39 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const loadCourse = async (courseId: number) => {
+  const loadCourse = useCallback(async (courseId: number, kbId: number, projectName: string) => {
     try {
-        setIsLoading(true);
-        const { course, messages } = await fetchCourseData(courseId)
-        setActiveCourseMessages(messages);
-        setActiveCourseId(courseId);
-        // TODO: Загрузить шаги и план
-        if (course.status === 'planning') {
+      setIsLoading(true);
+      const { course, messages } = await fetchCourseData(courseId);
+      
+      setActiveCourseMessages(messages);
+      setActiveCourseId(courseId);
+      // Устанавливаем текущую тему и ID Базы Знаний, чтобы чат знал, с чем работать
+      setCurrentTopic(course.topic); 
+      setCurrentKbId(kbId);
+      
+      // Устанавливаем имя для заголовка
+      setActiveProjectName(projectName); // Или course.topic, в зависимости от желаемого UX
+
+      // Восстанавливаем состояние планирования
+      if (course.status === 'planning') {
         setIsPlanning(true);
         setGeneratedPlan(course.plan || []);
       } else { // 'approved'
         setIsPlanning(false);
         setGeneratedPlan(course.plan || []);
       }
+      
     } catch (error) {
-        console.error("Ошибка загрузки курса:", error);
+      console.error("Ошибка загрузки курса:", error);
+      // В случае ошибки сбрасываем состояние
+      setActiveCourseMessages([]);
+      setIsPlanning(false);
+      setGeneratedPlan(null);
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
-  };
+  }, []);
 
   const value = {
     nodes,
