@@ -7,7 +7,7 @@ import { templateBlog, sandboxTasks } from '../components/config/templates';
 import { fetchProjects, fetchProjectById, renameProject, deleteProject } from '../api/projectService';
 import { useAuth } from './AuthContext';
 import { getPlanUpdate } from '../api/aiService';
-import { createCourse, fetchCoursesForKB, approveCoursePlan, fetchCourseData, sendCourseMessage   } from '../api/teacherService';
+import { createCourse, fetchCoursesForKB, approveCoursePlan, fetchCourseData, sendCourseMessage, updateCoursePlan } from '../api/teacherService';
 
 
 
@@ -301,6 +301,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       return null;
     }
   };
+
   const beginCoursePlanning = async (course: TeacherCourse, kbId: number) => {
     setIsPlanning(true);
     setGeneratedPlan(null);
@@ -323,6 +324,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         try {
           const plan = JSON.parse(match[1]);
           setGeneratedPlan(plan);
+          await updateCoursePlan(course.id, plan); 
           planText = fullResponseText.replace(jsonRegex, '').trim();
         } catch (e) {
           console.error("Ошибка парсинга плана:", e);
@@ -383,6 +385,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         try {
           const plan = JSON.parse(match[1]);
           setGeneratedPlan(plan);
+          if (activeCourseId) {
+            await updateCoursePlan(activeCourseId, plan);
+          }
           planText = fullResponseText.replace(jsonRegex, '').trim();
         } catch (e) {
           console.error("Ошибка парсинга плана:", e);
@@ -417,7 +422,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       // 5. Отправляем финальный план на новый эндпоинт
-      await approveCoursePlan(activeCourseId, generatedPlan);
+      await approveCoursePlan(activeCourseId);
       
       setIsPlanning(false);
       // setGeneratedPlan(null);

@@ -51,11 +51,11 @@ export const createCourse = async (kbId: number, topic: string): Promise<{ cours
     return response.json();
 };
 
-export const approveCoursePlan = async (courseId: number, plan: PlanStep[]) => {
+export const approveCoursePlan = async (courseId: number) => {
     const response = await fetch(`${API_URL}/courses/${courseId}/approve`, {
         method: 'PUT',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({}),
     });
     if (!response.ok) throw new Error('Не удалось утвердить план');
     return response.json();
@@ -76,5 +76,15 @@ export const sendCourseMessage = async (courseId: number, message: { sender: 'us
     if (!response.ok) {
         throw new Error('Не удалось сохранить сообщение курса');
     }
+    return response.json();
+};
+
+export const updateCoursePlan = async (courseId: number, plan: PlanStep[]) => {
+    const response = await fetch(`${API_URL}/courses/${courseId}/plan`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ plan }),
+    });
+    if (!response.ok) throw new Error('Не удалось обновить план');
     return response.json();
 };

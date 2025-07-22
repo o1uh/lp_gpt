@@ -41,19 +41,15 @@ router.post('/knowledge-bases/:kbId/courses', (req, res) => {
   });
 });
 
-// НОВЫЙ ЭНДПОИНТ: PUT /api/teacher/courses/:courseId/approve - Утвердить план
+// PUT /api/teacher/courses/:courseId/approve - Утвердить план
 router.put('/courses/:courseId/approve', (req, res) => {
   const courseId = parseInt(req.params.courseId, 10);
-  const { plan } = req.body;
-  const userId = req.user.userId;
-
-  // TODO: Добавить проверку, что курс принадлежит userId
-
-  const planJson = JSON.stringify(plan);
-  const sql = `UPDATE courses SET plan_json = ?, status = 'approved' WHERE id = ?`;
   
-  db.run(sql, [planJson, courseId], function(err) {
-    if (err) return res.status(500).json({ error: 'Ошибка сохранения плана' });
+  // TODO: Добавить проверку, что курс принадлежит userId
+  const sql = `UPDATE courses SET status = 'approved' WHERE id = ?`;
+  
+  db.run(sql, [courseId], function(err) {
+    if (err) return res.status(500).json({ error: 'Ошибка утверждения плана' });
     res.status(200).json({ message: 'План успешно утвержден' });
   });
 });
@@ -97,6 +93,30 @@ router.post('/courses/:courseId/messages', (req, res) => {
         // TODO: Здесь будет вызов AI для ответа
         res.status(201).json({ id: this.lastID });
     });
+});
+
+// PUT /api/teacher/courses/:courseId/plan - Обновить JSON плана
+router.put('/courses/:courseId/plan', (req, res) => {
+  const courseId = parseInt(req.params.courseId, 10);
+  const { plan } = req.body; // Ожидаем только plan
+  const userId = req.user.userId;
+
+  // TODO: Добавить проверку, что курс принадлежит userId
+
+  if (!plan) {
+    return res.status(400).json({ error: "План не может быть пустым" });
+  }
+
+  const planJson = JSON.stringify(plan);
+  const sql = `UPDATE courses SET plan_json = ? WHERE id = ?`;
+  
+  db.run(sql, [planJson, courseId], function(err) {
+    if (err) {
+      console.error(err.message);
+      return res.status(500).json({ error: 'Ошибка обновления плана' });
+    }
+    res.status(200).json({ message: 'План успешно обновлен' });
+  });
 });
 
 module.exports = router;
