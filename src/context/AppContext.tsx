@@ -10,6 +10,7 @@ import { getPlanUpdate } from '../api/aiService';
 import { createCourse, fetchCoursesForKB, approveCoursePlan, fetchCourseData, sendCourseMessage   } from '../api/teacherService';
 
 
+
 type SandboxTask = typeof sandboxTasks[0];
 export interface Project { // Экспортируем, чтобы использовать в других файлах
   id: number;
@@ -61,7 +62,8 @@ interface AppContextType {
   isPlanning: boolean; // Флаг, что мы в режиме планирования
   generatedPlan: PlanStep[] | null; // Сгенерированный план
   approvePlan: () => void; // Функция для утверждения плана
-  startCoursePlanning: (kbId: number, topic: string) => void;
+  createNewCourse: (kbId: number, topic: string) => Promise<TeacherCourse | null>; 
+  beginCoursePlanning: (course: TeacherCourse, kbId: number) => void; 
   currentTopic: string;
   teacherCourses: TeacherCourse[]; 
   loadCourses: (kbId: number) => Promise<void>;
@@ -288,37 +290,29 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       onSaveAndConfirm: undefined, 
     });
   };
-  
-   const startCoursePlanning = async (kbId: number, topic: string) => {
-    await loadCourses(kbId);
-    setIsPlanning(true);
-    setGeneratedPlan(null);
-    setCurrentTopic(topic);
-    setCurrentKbId(kbId);
-    
-    // 1. Создаем новый курс в БД СРАЗУ
-    let newCourseId: number | null = null;
+  const createNewCourse = async (kbId: number, topic: string): Promise<TeacherCourse | null> => {
     try {
       const newCourseData = await createCourse(kbId, topic);
-      newCourseId = newCourseData.course.id;
-      setActiveCourseId(newCourseId); // Сразу делаем его активным
-      await loadCourses(kbId); // Обновляем список слева
-    } catch (e) {
-      alert("Не удалось создать курс в базе данных.");
-      console.error(e);
-      setIsPlanning(false);
-      return;
+      await loadCourses(kbId); // Обновляем список курсов
+      return newCourseData.course;
+    } catch (error) {
+      console.error("Не удалось создать курс в БД:", error);
+      alert("Ошибка создания курса.");
+      return null;
     }
-
-    // 2. Устанавливаем и сохраняем сообщение "Генерирую..."
-    const generatingMessage: Message = { id: Date.now(), text: `Генерирую план обучения по теме "${topic}"...`, sender: 'ai' };
-    setActiveCourseMessages([generatingMessage]);
-    await sendCourseMessage(newCourseId, { sender: 'ai', text: generatingMessage.text });
+  };
+  const beginCoursePlanning = async (course: TeacherCourse, kbId: number) => {
+    setIsPlanning(true);
+    setGeneratedPlan(null);
+    setCurrentTopic(course.name);
+    setCurrentKbId(kbId);
+    setActiveCourseId(course.id);
     
+    setActiveCourseMessages([{ id: Date.now(), text: `Генерирую план обучения по теме "${course.name}"...`, sender: 'ai' }]);
     setIsLoading(true);
     try {
       // 3. Генерируем план
-      const response = await getPlanUpdate(kbId, topic, []); // История пока пустая
+      const response = await getPlanUpdate(kbId, course.name, []); // История пока пустая
       const fullResponseText = response.fullResponse;
       const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
       const match = fullResponseText.match(jsonRegex);
@@ -341,7 +335,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
       // 4. Создаем и СОХРАНЯЕМ сообщение с планом
       const planMessage: Message = { id: Date.now() + 1, text: planText, sender: 'ai' };
-      await sendCourseMessage(newCourseId, { sender: 'ai', text: planMessage.text });
+      await sendCourseMessage(course.id, { sender: 'ai', text: planMessage.text });
 
       // 5. Обновляем UI финальным сообщением
       setActiveCourseMessages(prev => [...prev, planMessage]);
@@ -349,7 +343,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error(error);
       const errorMessage: Message = { id: Date.now() + 1, text: "Не удалось сгенерировать план.", sender: 'ai' };
-      await sendCourseMessage(newCourseId, { sender: 'ai', text: errorMessage.text });
+      await sendCourseMessage(course.id, { sender: 'ai', text: errorMessage.text });
       setActiveCourseMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
@@ -479,6 +473,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const value = {
@@ -511,7 +506,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     isPlanning,
     generatedPlan,
     approvePlan,
-    startCoursePlanning,
+    createNewCourse,
+    beginCoursePlanning,
     teacherCourses,
     loadCourses,
     currentTopic,

@@ -22,7 +22,7 @@ interface ContentPanelProps {
 }
 
 export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
-  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId, startCoursePlanning, loadCourses, teacherCourses, loadCourse, generatedPlan  } = useAppContext(); 
+  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId, createNewCourse, beginCoursePlanning, loadCourses, teacherCourses, loadCourse, generatedPlan  } = useAppContext(); 
   
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
@@ -77,8 +77,19 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
 
   const handleCreateCourse = async (topic: string) => {
     if (teacherView.level !== 'courses') return; // Защита
-    startCoursePlanning(teacherView.knowledgeBaseId, topic);
     setIsCourseModalOpen(false);
+    const newCourse = await createNewCourse(teacherView.knowledgeBaseId, topic)
+    if (newCourse) {
+      setTeacherView({
+        level: 'steps',
+        courseId: newCourse.id,
+        courseName: newCourse.name,
+        knowledgeBaseId: teacherView.knowledgeBaseId,
+        projectName: teacherView.projectName
+      });
+      // Запускаем сессию планирования для только что созданного курса
+      beginCoursePlanning(newCourse, teacherView.knowledgeBaseId);
+    }
   };
 
   const handleTabChange = (tab: 'assistant' | 'teacher' | 'examiner') => {
