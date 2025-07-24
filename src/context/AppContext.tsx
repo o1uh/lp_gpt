@@ -7,7 +7,7 @@ import { templateBlog, sandboxTasks } from '../components/config/templates';
 import { fetchProjects, fetchProjectById, renameProject, deleteProject } from '../api/projectService';
 import { useAuth } from './AuthContext';
 import { getPlanUpdate } from '../api/aiService';
-import { createCourse, fetchCoursesForKB, approveCoursePlan, fetchCourseData, sendCourseMessage, updateCoursePlan } from '../api/teacherService';
+import { createCourse, fetchCoursesForKB, approveCoursePlan, fetchCourseData, sendCourseMessage, updateCoursePlan, fetchStepData } from '../api/teacherService';
 
 
 
@@ -32,6 +32,14 @@ type ConfirmationStateType = {
   confirmText?: string;
   saveAndConfirmText?: string;
 };
+
+export interface StepState {
+  messages: Message[];
+  lessonNodes: Node[];
+  lessonEdges: Edge[];
+  clarificationNodes: Node[];
+  clarificationEdges: Edge[];
+}
 
 interface AppContextType {
   nodes: Node[];
@@ -70,6 +78,9 @@ interface AppContextType {
   activeCourseMessages: Message[];
   loadCourse: (courseId: number, kbId: number, projectName: string) => void;  
   sendTeacherMessage: (text: string) => void;
+  activeStep: PlanStep | null;
+  activeStepState: StepState; 
+  loadStep: (step: PlanStep, courseProgressId: number) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -92,7 +103,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [teacherCourses, setTeacherCourses] = useState<TeacherCourse[]>([]);
   const [activeCourseId, setActiveCourseId] = useState<number | null>(null);
   const [activeCourseMessages, setActiveCourseMessages] = useState<Message[]>([]);
+  const [activeStep, setActiveStep] = useState<PlanStep | null>(null);
   
+  const [activeStepState, setActiveStepState] = useState<StepState>({
+    messages: [],
+    lessonNodes: [], lessonEdges: [],
+    clarificationNodes: [], clarificationEdges: [],
+  });
 
   const [confirmationState, setConfirmationState] = useState<ConfirmationStateType>({
     isOpen: false,
@@ -435,8 +452,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           sender: 'ai' 
         }
       ]);
+      const firstStep = generatedPlan[0];
+      if (firstStep) {
+        setActiveStep(firstStep);
+        // TODO: Загрузить состояние первого шага (пока будет пустой чат)
+      }
       
-      // TODO: Загрузить шаги и переключить ContentPanel в view 'steps'
       alert("Курс успешно утвержден!");
     } catch (error) {
       console.error(error);
@@ -481,6 +502,35 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const loadStep = useCallback(async (step: PlanStep, courseProgressId: number) => {
+    // TODO: Этот ID должен приходить из `step_progress`
+    const stepProgressId = 1; // Заглушка
+    
+    // 1. Устанавливаем активный шаг
+    setActiveStep(step);
+
+    try {
+      // 2. Загружаем данные для этого шага
+      const data = await fetchStepData(stepProgressId);
+      setActiveStepState({
+        messages: JSON.parse(data.messages_json || '[]'),
+        lessonNodes: JSON.parse(data.lesson_nodes_json || '[]'),
+        lessonEdges: JSON.parse(data.lesson_edges_json || '[]'),
+        clarificationNodes: JSON.parse(data.clarification_nodes_json || '[]'),
+        clarificationEdges: JSON.parse(data.clarification_edges_json || '[]'),
+      });
+    } catch (error) {
+      console.error("Ошибка загрузки шага:", error);
+      // Если данных нет, устанавливаем начальное состояние
+      setActiveStepState({
+        messages: [{ id: Date.now(), text: `Начинаем урок: ${step.title}`, sender: 'ai' }],
+        lessonNodes: [], lessonEdges: [],
+        clarificationNodes: [], clarificationEdges: [],
+      });
+    }
+  }, []);
+
+
   const value = {
     nodes,
     edges,
@@ -518,7 +568,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     currentTopic,
     activeCourseMessages,
     loadCourse,
-    sendTeacherMessage
+    sendTeacherMessage,
+    activeStep,
+    activeStepState,
+    loadStep,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

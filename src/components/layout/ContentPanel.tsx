@@ -2,7 +2,7 @@ import { useState, type ReactNode, useEffect } from 'react';
 import { Plus, Hash, BookOpen, ClipboardCheck, MessageSquare, ArrowLeft, LoaderCircle } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { useAppContext, type Project } from '../../context/AppContext';
-import type { TeacherProject, TeacherCourse } from '../../types';
+import type { TeacherProject, TeacherCourse, PlanStep  } from '../../types';
 import { NewCourseModal } from '../ui/NewCourseModal';
 import { fetchKnowledgeBases } from '../../api/teacherService';
 
@@ -22,7 +22,7 @@ interface ContentPanelProps {
 }
 
 export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
-  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId, createNewCourse, beginCoursePlanning, loadCourses, teacherCourses, loadCourse, generatedPlan  } = useAppContext(); 
+  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId, createNewCourse, beginCoursePlanning, loadCourses, teacherCourses, loadCourse, generatedPlan, loadStep  } = useAppContext(); 
   
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
@@ -123,6 +123,12 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
             projectName: teacherView.projectName
         });
       }
+  };
+
+  const handleStepClick = (step: PlanStep) => {
+    // TODO: Нам нужен `courseProgressId`
+    const courseProgressId = 1; // Заглушка
+    loadStep(step, courseProgressId);
   };
 
   // Функция для рендеринга контента активной вкладки
@@ -254,7 +260,8 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
                     {/* Рендерим шаги из `generatedPlan` */}
                     {generatedPlan && generatedPlan.map(step => (
                       <li key={step.id}>
-                        <button className="w-full text-left flex items-center gap-x-2 p-2 rounded text-gray-500 cursor-not-allowed">
+                        <button onClick={() => handleStepClick(step)}
+                          className="w-full text-left flex items-center gap-x-2 p-2 rounded text-gray-500 cursor-not-allowed">
                           <span>{step.id} {step.title}</span>
                         </button>
                       </li>

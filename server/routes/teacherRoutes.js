@@ -44,44 +44,98 @@ router.post('/knowledge-bases/:kbId/courses', (req, res) => {
 // PUT /api/teacher/courses/:courseId/approve - Утвердить план
 router.put('/courses/:courseId/approve', (req, res) => {
   const courseId = parseInt(req.params.courseId, 10);
+  const { plan } = req.body;
+  const userId = req.user.userId;
+
+  const planJson = JSON.stringify(plan);
+  const updateCourseSql = `UPDATE courses SET plan_json = ?, status = 'approved' WHERE id = ? AND user_id = ?`;
   
-  // TODO: Добавить проверку, что курс принадлежит userId
-  const sql = `UPDATE courses SET status = 'approved' WHERE id = ?`;
-  
-  db.run(sql, [courseId], function(err) {
-    if (err) return res.status(500).json({ error: 'Ошибка утверждения плана' });
-    res.status(200).json({ message: 'План успешно утвержден' });
+  db.run(updateCourseSql, [planJson, courseId, userId], function(err) {
+    if (err) return res.status(500).json({ error: 'Ошибка сохранения плана' });
+    if (this.changes === 0) return res.status(403).json({ error: "Доступ запрещен или курс не найден"});
+
+    // Создаем запись в course_progress
+    const progressSql = `INSERT INTO course_progress (course_id, user_id, status) VALUES (?, ?, 'in_progress')`;
+    db.run(progressSql, [courseId, userId], function(err) {
+        if (err) return res.status(500).json({ error: 'Ошибка инициализации прогресса' });
+        
+        const courseProgressId = this.lastID;
+        
+        // Создаем записи для каждого шага в step_progress
+        const stepSql = `INSERT INTO step_progress (course_progress_id, step_id, status) VALUES (?, ?, ?)`;
+        plan.forEach((step, index) => {
+            // Первый шаг делаем разблокированным, остальные - заблокированными
+            const status = index === 0 ? 'unlocked' : 'locked';
+            db.run(stepSql, [courseProgressId, step.id, status]);
+        });
+        
+        res.status(200).json({ message: 'План успешно утвержден и прогресс инициализирован' });
+    });
   });
 });
 
-// GET /api/teacher/courses/:courseId - Получить полную (почти) информацию о курсе
+// GET /api/teacher/courses/:courseId - Получить полную информацию о курсе
 router.get('/courses/:courseId', (req, res) => {
-    // TODO: Добавить проверку владения курсом
-    const courseId = req.params.courseId;
+    const courseId = parseInt(req.params.courseId, 10);
+    const userId = req.user.userId;
 
-    const courseSql = 'SELECT * FROM courses WHERE id = ?';
-    const messagesSql = 'SELECT id, sender, content as text FROM course_messages WHERE course_id = ? ORDER BY timestamp ASC';
+    // Сначала получаем основную информацию о курсе
+    const courseSql = 'SELECT * FROM courses WHERE id = ? AND user_id = ?';
+    db.get(courseSql, [courseId, userId], (err, course) => {
+        if (err) {
+            console.error(err.message);
+            return res.status(500).json({ error: 'Ошибка сервера при поиске курса' });
+        }
+        if (!course) {
+            return res.status(404).json({ error: 'Курс не найден или у вас нет к нему доступа' });
+        }
 
-    db.get(courseSql, [courseId], (err, course) => {
-        if (err) return res.status(500).json({ error: 'Ошибка сервера' });
-        if (!course) return res.status(404).json({ error: 'Курс не найден' });
-
+        // Затем получаем сообщения главного чата этого курса
+        const messagesSql = 'SELECT id, sender, content as text FROM course_messages WHERE course_id = ? ORDER BY timestamp ASC';
         db.all(messagesSql, [courseId], (err, messages) => {
-            if (err) return res.status(500).json({ error: 'Ошибка сервера' });
-            
-            res.json({
-                course: {
-                    id: course.id,
-                    topic: course.topic,
-                    status: course.status,
-                    plan: JSON.parse(course.plan_json || '[]')
-                },
-                messages: messages
+            if (err) {
+                console.error(err.message);
+                return res.status(500).json({ error: 'Ошибка сервера при загрузке сообщений' });
+            }
+
+            // Затем получаем прогресс по всем шагам этого курса для данного пользователя
+            const progressSql = `
+                SELECT sp.step_id, sp.status
+                FROM course_progress cp
+                JOIN step_progress sp ON cp.id = sp.course_progress_id
+                WHERE cp.course_id = ? AND cp.user_id = ?
+            `;
+            db.all(progressSql, [courseId, userId], (err, stepsProgress) => {
+                if (err) {
+                    console.error(err.message);
+                    return res.status(500).json({ error: 'Ошибка сервера при загрузке прогресса' });
+                }
+
+                // Объединяем план из курса с данными о прогрессе
+                const planFromDb = JSON.parse(course.plan_json || '[]');
+                const planWithProgress = planFromDb.map(step => {
+                    const progress = stepsProgress.find(s => s.step_id === step.id);
+                    return {
+                        ...step,
+                        // Если прогресса для шага нет, считаем его заблокированным
+                        status: progress ? progress.status : 'locked' 
+                    };
+                });
+
+                // Собираем и отправляем финальный ответ
+                res.json({
+                    course: {
+                        id: course.id,
+                        topic: course.topic,
+                        status: course.status,
+                        plan: planWithProgress // Отправляем план, обогащенный статусами
+                    },
+                    messages: messages
+                });
             });
         });
     });
 });
-
 // POST /api/teacher/courses/:courseId/messages - Отправить сообщение в главный чат
 router.post('/courses/:courseId/messages', (req, res) => {
     // TODO: Добавить проверку владения курсом
@@ -117,6 +171,28 @@ router.put('/courses/:courseId/plan', (req, res) => {
     }
     res.status(200).json({ message: 'План успешно обновлен' });
   });
+});
+
+// GET /api/teacher/steps/:stepProgressId - Получить полное состояние шага (сообщения, схемы)
+router.get('/steps/:stepProgressId', (req, res) => {
+    // TODO: Проверка владения
+    const stepProgressId = req.params.stepProgressId;
+    const sql = 'SELECT * FROM step_progress WHERE id = ?';
+    db.get(sql, [stepProgressId], (err, row) => {
+        if (err) return res.status(500).json({ error: 'Ошибка сервера' });
+        res.json(row);
+    });
+});
+
+// PUT /api/teacher/steps/:stepProgressId/complete - Пометить шаг как пройденный
+router.put('/steps/:stepProgressId/complete', (req, res) => {
+    // TODO: Проверка владения
+    const stepProgressId = req.params.stepProgressId;
+    const sql = `UPDATE step_progress SET status = 'completed' WHERE id = ?`;
+    db.run(sql, [stepProgressId], function(err) {
+        if (err) return res.status(500).json({ error: 'Ошибка сервера' });
+        res.status(200).json({ message: 'Шаг завершен' });
+    });
 });
 
 module.exports = router;

@@ -98,11 +98,27 @@ const createTables = () => {
           course_id INTEGER NOT NULL,
           user_id INTEGER NOT NULL,
           status TEXT NOT NULL DEFAULT 'not_started' CHECK(status IN ('not_started', 'in_progress', 'completed')),
-          completed_steps_json TEXT, -- JSON-массив ID пройденных шагов
-          current_step_id TEXT, -- ID текущего шага
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(course_id, user_id), 
           FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+      `);
+      
+      // Таблица для хранения состояния КАЖДОГО отдельного шага
+      db.run(`
+        CREATE TABLE IF NOT EXISTS step_progress (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          course_progress_id INTEGER NOT NULL, 
+          step_id TEXT NOT NULL, 
+          status TEXT NOT NULL DEFAULT 'locked' CHECK(status IN ('locked', 'unlocked', 'completed')),
+          messages_json TEXT,
+          lesson_nodes_json TEXT,
+          clarification_nodes_json TEXT,
+          lesson_edges_json TEXT,
+          clarification_edges_json TEXT,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (course_progress_id) REFERENCES course_progress(id) ON DELETE CASCADE
         )
       `);
 

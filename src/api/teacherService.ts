@@ -88,3 +88,18 @@ export const updateCoursePlan = async (courseId: number, plan: PlanStep[]) => {
     if (!response.ok) throw new Error('Не удалось обновить план');
     return response.json();
 };
+
+export const fetchStepData = async (stepProgressId: number) => {
+    const response = await fetch(`${API_URL}/steps/${stepProgressId}`, { headers: getAuthHeaders() });
+    if (!response.ok) throw new Error('Не удалось загрузить данные шага');
+    return response.json();
+};
+
+export const completeStep = async (stepProgressId: number) => {
+    const response = await fetch(`${API_URL}/steps/${stepProgressId}/complete`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error('Не удалось завершить шаг');
+    return response.json();
+};
