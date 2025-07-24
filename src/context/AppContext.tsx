@@ -332,6 +332,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       // 3. Генерируем план
       const response = await getPlanUpdate(kbId, course.name, []); // История пока пустая
       const fullResponseText = response.fullResponse;
+      console.log("ЧЕЛ ОТПРАВИЛ: ", fullResponseText)
       const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
       const match = fullResponseText.match(jsonRegex);
       
@@ -391,8 +392,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       }));
 
       // --- Дальше в этой функции ничего не меняется ---
+      console.log("ЧЕЛУ ОТПРАВИЛИ: ", historyForAPI)
       const response = await getPlanUpdate(currentKbId, currentTopic, historyForAPI);
       const fullResponseText = response.fullResponse;
+      console.log("ЧЕЛ ОТПРАВИЛ: ", fullResponseText)
       const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
       const match = fullResponseText.match(jsonRegex);
       
