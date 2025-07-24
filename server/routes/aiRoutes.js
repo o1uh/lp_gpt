@@ -44,7 +44,7 @@ router.post('/plan-chat', async (req, res) => {
             Твой ответ ДОЛЖЕН состоять из двух частей:
             1.  Сначала текстовое описание предложенного плана, отформатированное с помощью Markdown.
             2.  Сразу после текста, без лишних слов, ОБЯЗАТЕЛЬНО верни JSON-массив с планом, обернутый в теги \`\`\`json ... \`\`\`.
-            
+
             Формат JSON:
             [
                 { "id": "1.1", "title": "Название шага, привязанное к проекту" },
@@ -52,24 +52,19 @@ router.post('/plan-chat', async (req, res) => {
             ]
         `;
         
-        let messageToSend;
         let initialHistory = [
             { role: 'user', parts: [{ text: plannerPrompt }] },
             { role: 'model', parts: [{ text: "Я готов. Какой запрос от пользователя?" }] },
+            ...history
         ];
-        
-        // Если история пустая - это первый запрос на генерацию плана.
-        if (history.length === 0) {
-            messageToSend = `Сгенерируй, пожалуйста, первоначальный план по теме "${topic}".`;
-        } else {
-        // Если история не пустая, значит пользователь дорабатывает план.
-            initialHistory.push(...history); // Добавляем реальный диалог
-            messageToSend = history[history.length - 1].parts[0].text;
-        }
-        
+
         const chat = model.startChat({
             history: initialHistory
         });
+
+        const messageToSend = history.length > 0 
+            ? history[history.length - 1].parts[0].text // Если диалог уже идет, отправляем последнее сообщение
+            : `Сгенерируй, пожалуйста, первоначальный план по теме "${topic}"`; // Если это начало, даем стартовую команду
         
         const result = await chat.sendMessage(messageToSend);
         const responseText = result.response.text();
