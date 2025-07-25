@@ -452,7 +452,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       // 5. Отправляем финальный план на новый эндпоинт
-      await approveCoursePlan(activeCourseId);
+      const { courseProgressId } = await approveCoursePlan(activeCourseId, generatedPlan);
       
       setIsPlanning(false);
       // setGeneratedPlan(null);
@@ -468,7 +468,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const firstStep = generatedPlan[0];
       if (firstStep) {
         setActiveStep(firstStep);
-        // TODO: Загрузить состояние первого шага (пока будет пустой чат)
+        await loadStep(firstStep, courseProgressId);
       }
       
       alert("Курс успешно утвержден!");
@@ -516,6 +516,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const loadStep = useCallback(async (step: PlanStep, courseProgressId: number) => {
+     console.log("Загрузка шага:", step.id);
     // TODO: Этот ID должен приходить из `step_progress`
     const stepProgressId = 1; // Заглушка
     setActiveStepProgressId(stepProgressId);
@@ -523,6 +524,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setActiveStep(step);
 
     try {
+      
       // 2. Загружаем данные для этого шага
       const data = await fetchStepData(stepProgressId);
       setActiveStepState({

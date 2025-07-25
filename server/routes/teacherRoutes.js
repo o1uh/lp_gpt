@@ -69,7 +69,10 @@ router.put('/courses/:courseId/approve', (req, res) => {
             db.run(stepSql, [courseProgressId, step.id, status]);
         });
         
-        res.status(200).json({ message: 'План успешно утвержден и прогресс инициализирован' });
+        res.status(200).json({ 
+          message: 'План успешно утвержден и прогресс инициализирован', 
+          courseProgressId: courseProgressId,
+        });
     });
   });
 });

@@ -258,14 +258,28 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
                 <div className="flex-grow overflow-y-auto pr-2">
                   <ul className="space-y-2">
                     {/* Рендерим шаги из `generatedPlan` */}
-                    {generatedPlan && generatedPlan.map(step => (
-                      <li key={step.id}>
-                        <button onClick={() => handleStepClick(step)}
-                          className="w-full text-left flex items-center gap-x-2 p-2 rounded text-gray-500 cursor-not-allowed">
-                          <span>{step.id} {step.title}</span>
-                        </button>
-                      </li>
-                    ))}
+                    {generatedPlan && generatedPlan.map((step: PlanStep & { status?: string }) => { // Добавляем статус
+                      const isLocked = step.status === 'locked';
+                      const isCompleted = step.status === 'completed';
+
+                      return (
+                        <li key={step.id}>
+                          <button 
+                            onClick={() => !isLocked && handleStepClick(step)}
+                            // Делаем кнопку неактивной, если она заблокирована
+                            disabled={isLocked}
+                            className={`w-full text-left flex items-center gap-x-2 p-2 rounded 
+                              ${isLocked 
+                                ? 'text-gray-600 cursor-not-allowed' 
+                                : 'text-gray-300 hover:bg-gray-700'
+                              }
+                              ${isCompleted ? 'line-through' : ''}` // Зачеркиваем пройденные
+                            }
+                          >
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               </div>

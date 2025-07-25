@@ -53,11 +53,11 @@ export const createCourse = async (kbId: number, topic: string): Promise<{ cours
     return response.json();
 };
 
-export const approveCoursePlan = async (courseId: number) => {
+export const approveCoursePlan = async (courseId: number, plan: PlanStep[]): Promise<{ courseProgressId: number }> => {
     const response = await fetch(`${API_URL}/courses/${courseId}/approve`, {
         method: 'PUT',
         headers: getAuthHeaders(),
-        body: JSON.stringify({}),
+         body: JSON.stringify({ plan }),
     });
     if (!response.ok) throw new Error('Не удалось утвердить план');
     return response.json();
