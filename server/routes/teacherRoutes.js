@@ -195,4 +195,44 @@ router.put('/steps/:stepProgressId/complete', (req, res) => {
     });
 });
 
+// PUT /api/teacher/steps/:stepProgressId - Сохранить текущее состояние шага
+router.put('/steps/:stepProgressId', (req, res) => {
+    const stepProgressId = parseInt(req.params.stepProgressId, 10);
+    const userId = req.user.userId;
+    const { messages, lessonNodes, lessonEdges, clarificationNodes, clarificationEdges } = req.body;
+
+    // TODO: Добавить проверку, что stepProgressId принадлежит курсу, который принадлежит userId
+
+    const sql = `
+        UPDATE step_progress SET
+            messages_json = ?,
+            lesson_nodes_json = ?,
+            lesson_edges_json = ?,
+            clarification_nodes_json = ?,
+            clarification_edges_json = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `;
+    
+    const params = [
+        JSON.stringify(messages),
+        JSON.stringify(lessonNodes),
+        JSON.stringify(lessonEdges),
+        JSON.stringify(clarificationNodes),
+        JSON.stringify(clarificationEdges),
+        stepProgressId
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error(err.message);
+            return res.status(500).json({ error: 'Ошибка сохранения прогресса шага' });
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ error: 'Запись о прогрессе шага не найдена' });
+        }
+        res.status(200).json({ message: 'Прогресс шага успешно сохранен' });
+    });
+});
+
 module.exports = router;

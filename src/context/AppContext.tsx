@@ -6,8 +6,8 @@ import { useChat, type HistoryItem } from '../hooks/useChat';
 import { templateBlog, sandboxTasks } from '../components/config/templates';
 import { fetchProjects, fetchProjectById, renameProject, deleteProject } from '../api/projectService';
 import { useAuth } from './AuthContext';
-import { getPlanUpdate } from '../api/aiService';
-import { createCourse, fetchCoursesForKB, approveCoursePlan, fetchCourseData, sendCourseMessage, updateCoursePlan, fetchStepData } from '../api/teacherService';
+import { getPlanUpdate, tutorChat} from '../api/aiService';
+import { createCourse, fetchCoursesForKB, approveCoursePlan, fetchCourseData, sendCourseMessage, updateCoursePlan, fetchStepData, saveStepState, completeStep } from '../api/teacherService';
 
 
 
@@ -39,6 +39,14 @@ export interface StepState {
   lessonEdges: Edge[];
   clarificationNodes: Node[];
   clarificationEdges: Edge[];
+}
+
+interface ParsedAIResponse {
+  lessonNodes?: Node[];
+  lessonEdges?: Edge[];
+  clarificationNodes?: Node[];
+  clarificationEdges?: Edge[];
+  stepCompleted?: boolean;
 }
 
 interface AppContextType {
@@ -81,6 +89,7 @@ interface AppContextType {
   activeStep: PlanStep | null;
   activeStepState: StepState; 
   loadStep: (step: PlanStep, courseProgressId: number) => void;
+  sendStepMessage: (text: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -104,6 +113,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [activeCourseId, setActiveCourseId] = useState<number | null>(null);
   const [activeCourseMessages, setActiveCourseMessages] = useState<Message[]>([]);
   const [activeStep, setActiveStep] = useState<PlanStep | null>(null);
+  const [activeStepProgressId, setActiveStepProgressId] = useState<number | null>(null);
   
   const [activeStepState, setActiveStepState] = useState<StepState>({
     messages: [],
@@ -508,7 +518,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const loadStep = useCallback(async (step: PlanStep, courseProgressId: number) => {
     // TODO: Этот ID должен приходить из `step_progress`
     const stepProgressId = 1; // Заглушка
-    
+    setActiveStepProgressId(stepProgressId);
     // 1. Устанавливаем активный шаг
     setActiveStep(step);
 
@@ -532,6 +542,79 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       });
     }
   }, []);
+
+  const sendStepMessage = async (text: string) => {
+    // Проверки на наличие всего необходимого контекста
+    if (!activeStep || !activeStepProgressId || !currentKbId) {
+        console.error("Невозможно отправить сообщение: неполный контекст урока.");
+        return;
+    }
+
+    const userMessage: Message = { id: Date.now(), text, sender: 'user' };
+    
+    // Создаем новое состояние немедленно для отзывчивости UI
+    const newMessages = [...activeStepState.messages, userMessage];
+    const optimisticState: StepState = { ...activeStepState, messages: newMessages };
+    setActiveStepState(optimisticState); // Оптимистичное обновление
+    
+    setIsLoading(true);
+
+    try {
+        // Вызов AI
+        const historyForAPI = newMessages.map(msg => ({
+            role: msg.sender === 'user' ? 'user' : 'model',
+            parts: [{ text: msg.text }],
+        }))as HistoryItem[];;
+        
+        const response = await tutorChat(currentKbId, activeStep, historyForAPI);
+        const fullResponseText = response.fullResponse;
+
+        // Парсинг ответа AI (схемы, текст, флаг `stepCompleted`)
+        const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
+        const match = fullResponseText.match(jsonRegex);
+        const chatResponse = fullResponseText.replace(jsonRegex, '').trim();
+        
+         let parsedJson: ParsedAIResponse = {};
+        if (match && match[1]) {
+            try {
+                parsedJson = JSON.parse(match[1]);
+            } catch (e) { console.error("Ошибка парсинга JSON от AI:", e); }
+        }
+        
+        const aiMessage: Message = { id: Date.now() + 1, text: chatResponse, sender: 'ai' };
+
+        // Собираем финальное состояние шага после ответа AI
+        const finalStepState: StepState = {
+            messages: [...newMessages, aiMessage],
+            lessonNodes: parsedJson.lessonNodes || activeStepState.lessonNodes,
+            lessonEdges: parsedJson.lessonEdges || activeStepState.lessonEdges,
+            clarificationNodes: parsedJson.clarificationNodes || activeStepState.clarificationNodes,
+            clarificationEdges: parsedJson.clarificationEdges || activeStepState.clarificationEdges,
+        };
+
+        // Автосохранение полного состояния шага в БД
+        await saveStepState(activeStepProgressId, finalStepState);
+        
+        // Финальное обновление UI
+        setActiveStepState(finalStepState);
+        
+        // Если AI сообщил, что шаг пройден
+        if (parsedJson.stepCompleted) {
+            await completeStep(activeStepProgressId);
+            // Загружаем обновленный курс, чтобы увидеть, что следующий шаг разблокировался
+            if (activeCourseId) {
+                await loadCourse(activeCourseId, currentKbId, activeProjectName);
+            }
+        }
+
+    } catch (error) {
+        console.error("Ошибка в диалоге с учителем:", error);
+        const errorMessage: Message = { id: Date.now() + 1, text: "Произошла ошибка при общении с AI-учителем.", sender: 'ai' };
+        setActiveStepState(prev => ({ ...prev, messages: [...prev.messages, errorMessage] }));
+    } finally {
+        setIsLoading(false);
+    }
+  };
 
 
   const value = {
@@ -575,6 +658,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     activeStep,
     activeStepState,
     loadStep,
+    sendStepMessage
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

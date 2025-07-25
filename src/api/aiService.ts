@@ -1,4 +1,5 @@
 import type { HistoryItem } from '../hooks/useChat';
+import type {PlanStep } from '../types';
 
 // Вспомогательная функция для заголовков (можно вынести в общий файл)
 const getAuthHeaders = () => {
@@ -20,6 +21,18 @@ export const getPlanUpdate = async (kbId: number, topic: string, history: Histor
     });
     if (!response.ok) {
         throw new Error('Не удалось получить ответ от планировщика');
+    }
+    return response.json();
+};
+
+export const tutorChat = async (kbId: number, step: PlanStep, history: HistoryItem[]): Promise<{ fullResponse: string }> => {
+    const response = await fetch(`${API_URL}/ai/tutor-chat`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ kbId, step, history }),
+    });
+    if (!response.ok) {
+        throw new Error('Не удалось получить ответ от AI-Учителя');
     }
     return response.json();
 };

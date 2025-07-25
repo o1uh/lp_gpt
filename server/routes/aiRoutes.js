@@ -77,4 +77,51 @@ router.post('/plan-chat', async (req, res) => {
     }
 });
 
+// POST /api/ai/tutor-chat - Чат для конкретного шага урока
+router.post('/tutor-chat', async (req, res) => {
+    const { kbId, step, history } = req.body;
+    if (!kbId || !step || !history) return res.status(400).json({ error: 'Необходимо указать ID Базы Знаний и тему' });
+
+    try {
+        const contextDocs = await queryKB(kbId, step.title, 5); // Узкий поиск по теме шага
+        const context = contextDocs.map(doc => doc.pageContent).join('\n---\n');
+
+        const tutorPrompt = `
+            Твоя роль: AI-Учитель.
+            Твоя задача: Провести пользователя по конкретному шагу урока.
+            Объясняй материал просто, используя Markdown. Сопровождай объяснения визуализацией на схеме.
+            
+            ТЕКУЩИЙ ШАГ УРОКА: "${step.id} - ${step.title}"
+
+            КОНТЕКСТ ИЗ БАЗЫ ЗНАНИЙ:
+            ---
+            ${context}
+            ---
+
+            ПРАВИЛА ВИЗУАЛИЗАЦИИ:
+            1. Для объяснения материала используй "схему урока".
+            2. Если пользователь задает уточняющий вопрос, можешь сгенерировать отдельную схему для "уточнений".
+            3. Возвращай JSON с ключами "lessonNodes", "lessonEdges", "clarificationNodes", "clarificationEdges".
+            4. Если в конце урока ты считаешь, что тема раскрыта, верни в JSON флаг "stepCompleted": true.
+        `;
+        
+        const chat = model.startChat({
+            history: [
+                { role: 'user', parts: [{ text: tutorPrompt }] },
+                { role: 'model', parts: [{ text: "Я готов вести урок. Какой вопрос от пользователя?" }] },
+                ...history
+            ]
+        });
+
+        const lastUserMessage = history[history.length - 1].parts[0].text;
+        const result = await chat.sendMessage(lastUserMessage);
+        const responseText = result.response.text();
+        
+        res.json({ fullResponse: responseText });
+
+    } catch (error) { 
+        console.error("Error in /tutor-chat route:", error);
+        res.status(500).json({ error: "Не удалось обработать запрос." }); }
+});
+
 module.exports = router;

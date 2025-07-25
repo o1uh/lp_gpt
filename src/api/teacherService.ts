@@ -1,4 +1,6 @@
 import type { TeacherProject, TeacherCourse, PlanStep, Message } from '../types';
+import { type StepState } from '../context/AppContext';
+
 
 // Вспомогательная функция для заголовков
 const getAuthHeaders = () => {
@@ -102,4 +104,12 @@ export const completeStep = async (stepProgressId: number) => {
     });
     if (!response.ok) throw new Error('Не удалось завершить шаг');
     return response.json();
+};
+
+export const saveStepState = async (stepProgressId: number, state: StepState) => {
+    await fetch(`${API_URL}/steps/${stepProgressId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(state),
+    });
 };
