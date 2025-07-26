@@ -176,13 +176,13 @@ router.put('/courses/:courseId/plan', (req, res) => {
   });
 });
 
-// GET /api/teacher/steps/:stepProgressId - Получить полное состояние шага (сообщения, схемы)
-router.get('/steps/:stepProgressId', (req, res) => {
-    // TODO: Проверка владения
-    const stepProgressId = req.params.stepProgressId;
-    const sql = 'SELECT * FROM step_progress WHERE id = ?';
-    db.get(sql, [stepProgressId], (err, row) => {
+// GET /api/teacher/courseProgressId/step/:stepId - Получить запись о прогрессе конкретного шага
+router.get('/progress/:courseProgressId/step/:stepId', (req, res) => {
+    const { courseProgressId, stepId } = req.params;
+    const sql = 'SELECT * FROM step_progress WHERE course_progress_id = ? AND step_id = ?';
+    db.get(sql, [courseProgressId, stepId], (err, row) => {
         if (err) return res.status(500).json({ error: 'Ошибка сервера' });
+        if (!row) return res.status(404).json({ error: 'Прогресс для данного шага не найден' });
         res.json(row);
     });
 });

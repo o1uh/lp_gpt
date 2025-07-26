@@ -24,6 +24,19 @@ interface CourseDataPayload {
   messages: Message[];
 }
 
+interface StepProgressData {
+  id: number;
+  course_progress_id: number;
+  step_id: string;
+  status: 'locked' | 'unlocked' | 'completed';
+  messages_json: string | null;
+  lesson_nodes_json: string | null;
+  lesson_edges_json: string | null;
+  clarification_nodes_json: string | null;
+  clarification_edges_json: string | null;
+  updated_at: string;
+}
+
 export const fetchKnowledgeBases = async (): Promise<TeacherProject[]> => {
     const response = await fetch(`${API_URL}/knowledge-bases`, { headers: getAuthHeaders() });
     if (!response.ok) {
@@ -91,10 +104,10 @@ export const updateCoursePlan = async (courseId: number, plan: PlanStep[]) => {
     return response.json();
 };
 
-export const fetchStepData = async (stepProgressId: number) => {
-    const response = await fetch(`${API_URL}/steps/${stepProgressId}`, { headers: getAuthHeaders() });
-    if (!response.ok) throw new Error('Не удалось загрузить данные шага');
-    return response.json();
+export const fetchStepProgress = async (courseProgressId: number, stepId: string): Promise<StepProgressData> => {
+  const response = await fetch(`${API_URL}/progress/${courseProgressId}/step/${stepId}`, { headers: getAuthHeaders() });
+  if (!response.ok) throw new Error('Не удалось загрузить прогресс шага');
+  return response.json();
 };
 
 export const completeStep = async (stepProgressId: number) => {
@@ -107,9 +120,11 @@ export const completeStep = async (stepProgressId: number) => {
 };
 
 export const saveStepState = async (stepProgressId: number, state: StepState) => {
-    await fetch(`${API_URL}/steps/${stepProgressId}`, {
+    const response = await fetch(`${API_URL}/steps/${stepProgressId}`, {
         method: 'PUT',
         headers: getAuthHeaders(),
         body: JSON.stringify(state),
     });
+    if (!response.ok) throw new Error('Не удалось сохранить состояние шага');
+    return response.json()
 };

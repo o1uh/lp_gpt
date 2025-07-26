@@ -7,7 +7,7 @@ import { templateBlog, sandboxTasks } from '../components/config/templates';
 import { fetchProjects, fetchProjectById, renameProject, deleteProject } from '../api/projectService';
 import { useAuth } from './AuthContext';
 import { getPlanUpdate, tutorChat} from '../api/aiService';
-import { createCourse, fetchCoursesForKB, approveCoursePlan, fetchCourseData, sendCourseMessage, updateCoursePlan, fetchStepData, saveStepState, completeStep } from '../api/teacherService';
+import { createCourse, fetchCoursesForKB, approveCoursePlan, fetchCourseData, sendCourseMessage, updateCoursePlan, fetchStepProgress, saveStepState, completeStep } from '../api/teacherService';
 
 
 
@@ -515,36 +515,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadStep = useCallback(async (step: PlanStep, courseProgressId: number) => {
-     console.log("Загрузка шага:", step.id);
-    // TODO: Этот ID должен приходить из `step_progress`
-    const stepProgressId = 1; // Заглушка
-    setActiveStepProgressId(stepProgressId);
-    // 1. Устанавливаем активный шаг
-    setActiveStep(step);
-
-    try {
-      
-      // 2. Загружаем данные для этого шага
-      const data = await fetchStepData(stepProgressId);
-      setActiveStepState({
-        messages: JSON.parse(data.messages_json || '[]'),
-        lessonNodes: JSON.parse(data.lesson_nodes_json || '[]'),
-        lessonEdges: JSON.parse(data.lesson_edges_json || '[]'),
-        clarificationNodes: JSON.parse(data.clarification_nodes_json || '[]'),
-        clarificationEdges: JSON.parse(data.clarification_edges_json || '[]'),
-      });
-    } catch (error) {
-      console.error("Ошибка загрузки шага:", error);
-      // Если данных нет, устанавливаем начальное состояние
-      setActiveStepState({
-        messages: [{ id: Date.now(), text: `Начинаем урок: ${step.title}`, sender: 'ai' }],
-        lessonNodes: [], lessonEdges: [],
-        clarificationNodes: [], clarificationEdges: [],
-      });
-    }
-  }, []);
-
   const sendStepMessage = async (text: string) => {
     // Проверки на наличие всего необходимого контекста
     if (!activeStep || !activeStepProgressId || !currentKbId) {
@@ -617,6 +587,48 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setIsLoading(false);
     }
   };
+
+  const loadStep = useCallback(async (step: PlanStep, courseProgressId: number) => {
+    // 1. Устанавливаем активный шаг, чтобы UI переключился
+    setActiveStep(step);
+    setIsLoading(true);
+
+    try {
+      // 2. Загружаем данные о прогрессе этого шага из БД (включая его ID)
+      const stepProgress = await fetchStepProgress(courseProgressId, step.id);
+      setActiveStepProgressId(stepProgress.id); // Сохраняем ID для будущих сохранений
+
+      // 3. Анализируем загруженные данные
+      const savedMessages = JSON.parse(stepProgress.messages_json || '[]');
+      
+      if (savedMessages.length > 0) {
+        // --- СЦЕНАРИЙ А: Урок уже начат ---
+        // Просто загружаем сохраненное состояние
+        setActiveStepState({
+          messages: savedMessages,
+          lessonNodes: JSON.parse(stepProgress.lesson_nodes_json || '[]'),
+          lessonEdges: JSON.parse(stepProgress.lesson_edges_json || '[]'),
+          clarificationNodes: JSON.parse(stepProgress.clarification_nodes_json || '[]'),
+          clarificationEdges: JSON.parse(stepProgress.clarification_edges_json || '[]'),
+        });
+        setIsLoading(false);
+      } else {
+        // --- СЦЕНАРИЙ Б: Урок начинается В ПЕРВЫЙ РАЗ ---
+        // Отправляем "скрытое" системное сообщение, чтобы запустить диалог
+        // `sendStepMessage` сам выключит `isLoading`, когда получит ответ.
+        await sendStepMessage("Начни урок по этой теме.");
+      }
+    } catch (error) {
+      console.error("Ошибка загрузки шага:", error);
+      setActiveStepState({
+        messages: [{ id: Date.now(), text: "Не удалось загрузить урок.", sender: 'ai' }],
+        lessonNodes: [], lessonEdges: [],
+        clarificationNodes: [], clarificationEdges: [],
+      });
+      setIsLoading(false);
+    }
+  }, [sendStepMessage]);
+
 
 
   const value = {
