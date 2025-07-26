@@ -89,7 +89,8 @@ interface AppContextType {
   activeStep: PlanStep | null;
   activeStepState: StepState; 
   loadStep: (step: PlanStep, courseProgressId: number) => void;
-  sendStepMessage: (text: string) => void;
+  sendStepMessage: (text: string, step: PlanStep, stepProgressId: number) => void;
+  activeStepProgressId: number | null;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -515,9 +516,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const sendStepMessage = async (text: string) => {
+  const sendStepMessage = async (text: string, step: PlanStep, stepProgressId: number) => {
     // Проверки на наличие всего необходимого контекста
-    if (!activeStep || !activeStepProgressId || !currentKbId) {
+    if (!step || !stepProgressId || !currentKbId) {
         console.error("Невозможно отправить сообщение: неполный контекст урока.");
         return;
     }
@@ -538,7 +539,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             parts: [{ text: msg.text }],
         }))as HistoryItem[];;
         
-        const response = await tutorChat(currentKbId, activeStep, historyForAPI);
+        const response = await tutorChat(currentKbId, step, historyForAPI);
         const fullResponseText = response.fullResponse;
 
         // Парсинг ответа AI (схемы, текст, флаг `stepCompleted`)
@@ -565,14 +566,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         };
 
         // Автосохранение полного состояния шага в БД
-        await saveStepState(activeStepProgressId, finalStepState);
+        await saveStepState(stepProgressId, finalStepState);
         
         // Финальное обновление UI
         setActiveStepState(finalStepState);
         
         // Если AI сообщил, что шаг пройден
         if (parsedJson.stepCompleted) {
-            await completeStep(activeStepProgressId);
+            await completeStep(stepProgressId);
             // Загружаем обновленный курс, чтобы увидеть, что следующий шаг разблокировался
             if (activeCourseId) {
                 await loadCourse(activeCourseId, currentKbId, activeProjectName);
@@ -616,7 +617,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         // --- СЦЕНАРИЙ Б: Урок начинается В ПЕРВЫЙ РАЗ ---
         // Отправляем "скрытое" системное сообщение, чтобы запустить диалог
         // `sendStepMessage` сам выключит `isLoading`, когда получит ответ.
-        await sendStepMessage("Начни урок по этой теме.");
+        await sendStepMessage("Начни урок по этой теме.", step, stepProgress.id);
       }
     } catch (error) {
       console.error("Ошибка загрузки шага:", error);
@@ -672,7 +673,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     activeStep,
     activeStepState,
     loadStep,
-    sendStepMessage
+    sendStepMessage,
+    activeStepProgressId
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -22,7 +22,7 @@ interface ContentPanelProps {
 }
 
 export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
-  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId, createNewCourse, beginCoursePlanning, loadCourses, teacherCourses, loadCourse, generatedPlan, loadStep  } = useAppContext(); 
+  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId, createNewCourse, beginCoursePlanning, loadCourses, teacherCourses, loadCourse, generatedPlan, loadStep, isPlanning  } = useAppContext(); 
   
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
@@ -259,23 +259,28 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
                   <ul className="space-y-2">
                     {/* Рендерим шаги из `generatedPlan` */}
                     {generatedPlan && generatedPlan.map((step: PlanStep & { status?: string }) => { // Добавляем статус
-                      const isLocked = step.status === 'locked';
-                      const isCompleted = step.status === 'completed';
+                      const isLocked = !isPlanning && step.status === 'locked';
+                      const isCompleted = !isPlanning && step.status === 'completed';
 
                       return (
                         <li key={step.id}>
                           <button 
                             onClick={() => !isLocked && handleStepClick(step)}
                             // Делаем кнопку неактивной, если она заблокирована
-                            disabled={isLocked}
+                            disabled={isLocked || isPlanning}
                             className={`w-full text-left flex items-center gap-x-2 p-2 rounded 
                               ${isLocked 
                                 ? 'text-gray-600 cursor-not-allowed' 
                                 : 'text-gray-300 hover:bg-gray-700'
                               }
-                              ${isCompleted ? 'line-through' : ''}` // Зачеркиваем пройденные
+                              ${isCompleted ? 'line-through text-green-400/80' : ''}`
                             }
                           >
+                            {isCompleted 
+                              ? <ClipboardCheck size={16} className="text-green-500 flex-shrink-0"/> 
+                              : <div className="w-4 h-4 border-2 border-gray-500 rounded-full flex-shrink-0"></div>
+                            }
+                            <span>{step.id} {step.title}</span>
                           </button>
                         </li>
                       );
