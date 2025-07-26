@@ -457,7 +457,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       
       setIsPlanning(false);
       // setGeneratedPlan(null);
-      await loadCourses(currentKbId);
+      await loadCourse(activeCourseId, currentKbId, activeProjectName);
       // 6. Трансформируем чат в Q&A
       setActiveCourseMessages([
         { 
@@ -601,23 +601,23 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
       // 3. Анализируем загруженные данные
       const savedMessages = JSON.parse(stepProgress.messages_json || '[]');
+
+      setActiveStepState({
+        messages: savedMessages,
+        lessonNodes: JSON.parse(stepProgress.lesson_nodes_json || '[]'),
+        lessonEdges: JSON.parse(stepProgress.lesson_edges_json || '[]'),
+        clarificationNodes: JSON.parse(stepProgress.clarification_nodes_json || '[]'),
+        clarificationEdges: JSON.parse(stepProgress.clarification_edges_json || '[]'),
+      });
       
-      if (savedMessages.length > 0) {
-        // --- СЦЕНАРИЙ А: Урок уже начат ---
-        // Просто загружаем сохраненное состояние
-        setActiveStepState({
-          messages: savedMessages,
-          lessonNodes: JSON.parse(stepProgress.lesson_nodes_json || '[]'),
-          lessonEdges: JSON.parse(stepProgress.lesson_edges_json || '[]'),
-          clarificationNodes: JSON.parse(stepProgress.clarification_nodes_json || '[]'),
-          clarificationEdges: JSON.parse(stepProgress.clarification_edges_json || '[]'),
-        });
-        setIsLoading(false);
-      } else {
-        // --- СЦЕНАРИЙ Б: Урок начинается В ПЕРВЫЙ РАЗ ---
-        // Отправляем "скрытое" системное сообщение, чтобы запустить диалог
-        // `sendStepMessage` сам выключит `isLoading`, когда получит ответ.
+      // --- СЦЕНАРИЙ А: Урок начинается В ПЕРВЫЙ РАЗ ---
+      // Отправляем "скрытое" системное сообщение, чтобы запустить диалог
+      // `sendStepMessage` сам выключит `isLoading`, когда получит ответ.
+      if (savedMessages.length === 0) {
         await sendStepMessage("Начни урок по этой теме.", step, stepProgress.id);
+      } else {
+      // --- СЦЕНАРИЙ Б: Урок уже начат ---
+        setIsLoading(false);
       }
     } catch (error) {
       console.error("Ошибка загрузки шага:", error);
