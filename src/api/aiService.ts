@@ -26,7 +26,7 @@ export const getPlanUpdate = async (kbId: number, topic: string, history: Histor
 };
 
 export const tutorChat = async (kbId: number, step: PlanStep, history: HistoryItem[]): Promise<{ fullResponse: string }> => {
-    const response = await fetch(`${API_URL}/ai/tutor-chat`, {
+    const response = await fetch(`${API_URL}/tutor-chat`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ kbId, step, history }),
