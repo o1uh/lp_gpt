@@ -91,6 +91,7 @@ interface AppContextType {
   loadStep: (step: PlanStep, courseProgressId: number) => void;
   sendStepMessage: (text: string, step: PlanStep, stepProgressId: number) => void;
   activeStepProgressId: number | null;
+  resetStepState: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -164,6 +165,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setEdges((eds) => addEdgeHelper(params, eds));
     setIsDirty(true);
   }, []);
+
+  const resetStepState = () => {
+    setActiveStep(null);
+    setActiveStepProgressId(null);
+    setActiveStepState({
+      messages: [],
+      lessonNodes: [], lessonEdges: [],
+      clarificationNodes: [], clarificationEdges: [],
+    });
+  };
 
   const loadProjects = useCallback(async () => {
     if (!isAuthenticated) return; 
@@ -320,6 +331,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
   const createNewCourse = async (kbId: number, topic: string): Promise<TeacherCourse | null> => {
     try {
+      resetStepState();
       const newCourseData = await createCourse(kbId, topic);
       await loadCourses(kbId); // Обновляем список курсов
       return newCourseData.course;
@@ -483,6 +495,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const loadCourse = useCallback(async (courseId: number, kbId: number, projectName: string) => {
     try {
+      resetStepState();
       setIsLoading(true);
       const { course, messages } = await fetchCourseData(courseId);
       
@@ -674,7 +687,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     activeStepState,
     loadStep,
     sendStepMessage,
-    activeStepProgressId
+    activeStepProgressId,
+    resetStepState,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

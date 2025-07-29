@@ -19,9 +19,19 @@ router.get('/knowledge-bases/:kbId/courses', (req, res) => {
   const kbId = parseInt(req.params.kbId, 10);
   const userId = req.user.userId; // Мы получаем пользователя из middleware
   
-  const sql = 'SELECT id, topic as name FROM courses WHERE kb_id = ? AND user_id = ? ORDER BY created_at DESC';
+ const sql = `
+    SELECT 
+      c.id, 
+      c.topic as name, 
+      c.status,
+      cp.id as courseProgressId -- Получаем ID из таблицы прогресса
+    FROM courses c
+    LEFT JOIN course_progress cp ON c.id = cp.course_id AND cp.user_id = ?
+    WHERE c.kb_id = ? AND c.user_id = ? 
+    ORDER BY c.created_at DESC
+  `;
   
-  db.all(sql, [kbId, userId], (err, rows) => {
+  db.all(sql, [userId, kbId, userId], (err, rows) => {
     if (err) return res.status(500).json({ error: 'Ошибка сервера' });
     res.json(rows);
   });

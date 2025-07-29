@@ -4,6 +4,7 @@ import TextareaAutosize from 'react-textarea-autosize';
 import { useAppContext } from '../../context/AppContext';
 import { ChatMessage } from './ChatMessage';
 import { PromptSuggestions } from './PromptSuggestions';
+import type { Message} from '../../types';
 
 interface ChatPanelProps {
   isPanelVisible: boolean;
@@ -33,22 +34,29 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel, activeTab }: ChatPane
     } = useAppContext();
   const [inputValue, setInputValue] = useState('');
   const chatEndRef = useRef<null | HTMLDivElement>(null);
-  const isInPlanningMode = isPlanning && activeTab === 'teacher';
-  const currentMessages = activeTab === 'teacher' && activeStep ? activeStepState.messages : (activeTab === 'teacher' ? activeCourseMessages : messages);
-  const currentSendMessage = activeTab === 'teacher' && activeStep ? (text: string) => {
-          if (activeStepProgressId) {
-            sendStepMessage(text, activeStep, activeStepProgressId) 
-          }
-        } 
-      : (isPlanning ? sendTeacherMessage : sendMessage);
-  
+
+  let currentMessages: Message[] = messages;
+  if (activeTab === 'teacher') {
+    currentMessages = activeStep ? activeStepState.messages : activeCourseMessages;
+  }
+
+  const isInPlanningMode = isPlanning && activeTab === 'teacher' && !activeStep;
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentMessages, isLoading]);
 
   const handleSendMessageClick = () => {
     if (inputValue.trim() === '' || isLoading) return;
-    currentSendMessage(inputValue);
+
+    // Вызываем нужную функцию с правильным набором аргументов
+    if (activeTab === 'teacher' && activeStep && activeStepProgressId) {
+      sendStepMessage(inputValue, activeStep, activeStepProgressId);
+    } else if (activeTab === 'teacher') {
+      sendTeacherMessage(inputValue);
+    } else {
+      sendMessage(inputValue);
+    }
+    
     setInputValue('');
   };
   

@@ -12,6 +12,8 @@ export interface TeacherProject {
 export interface TeacherCourse {
   id: number;
   name: string;
+  status: 'planning' | 'approved';
+  courseProgressId: number | null;
 }
 
 export interface TeacherStep {

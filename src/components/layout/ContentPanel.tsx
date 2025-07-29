@@ -22,7 +22,7 @@ interface ContentPanelProps {
 }
 
 export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
-  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId, createNewCourse, beginCoursePlanning, loadCourses, teacherCourses, loadCourse, generatedPlan, loadStep, isPlanning  } = useAppContext(); 
+  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId, createNewCourse, beginCoursePlanning, loadCourses, teacherCourses, loadCourse, generatedPlan, loadStep, isPlanning, resetStepState   } = useAppContext(); 
   
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
@@ -125,10 +125,23 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
       }
   };
 
-  const handleStepClick = (step: PlanStep) => {
-    // TODO: Нам нужен `courseProgressId`
-    const courseProgressId = 1; // Заглушка
-    loadStep(step, courseProgressId);
+  const handleStepClick = (step: PlanStep, course: TeacherCourse) => {
+    if (!course.courseProgressId) {
+        alert("Произошла ошибка: не найден прогресс для этого курса.");
+        return;
+    }
+    // Передаем правильный ID прогресса
+    loadStep(step, course.courseProgressId);
+  };
+
+  const handleBackToCourses = () => {
+    // 1. Сбрасываем состояние активного урока
+    resetStepState();
+    console.log(teacherView.level)
+    // 2. Возвращаемся к списку курсов
+    if (teacherView.level === 'steps') {
+        setTeacherView({ level: 'courses', knowledgeBaseId: teacherView.knowledgeBaseId, projectName: teacherView.projectName });
+    }
   };
 
   // Функция для рендеринга контента активной вкладки
@@ -240,7 +253,7 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
                 {/* 1. Верхний, НЕпрокручиваемый блок */}
                 <div>
                   <div className="flex justify-between items-center mb-4">
-                    <button onClick={() => setTeacherView({ level: 'courses', knowledgeBaseId: teacherView.knowledgeBaseId, projectName: teacherView.projectName })}
+                    <button onClick={() => handleBackToCourses() }
                      className="flex items-center gap-x-1 text-sm text-gray-400 hover:text-white">
                       <ArrowLeft size={16} /> Курсы
                     </button>
@@ -265,7 +278,7 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
                       return (
                         <li key={step.id}>
                           <button 
-                            onClick={() => !isLocked && handleStepClick(step)}
+                            onClick={() => !isLocked && currentCourse && handleStepClick(step, currentCourse)}
                             // Делаем кнопку неактивной, если она заблокирована
                             disabled={isLocked || isPlanning}
                             className={`w-full text-left flex items-center gap-x-2 p-2 rounded 
