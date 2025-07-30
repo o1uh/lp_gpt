@@ -23,6 +23,8 @@ export const ArchitecturePanel = () => {
     // Данные для режима "Учитель"
     activeStep,      // Чтобы понять, находимся ли мы в режиме урока
     activeStepState, // Состояние с данными урока
+    onLessonNodesChange,
+    onClarificationNodesChange,
   } = useAppContext();
 
   // 3. Локальное состояние для переключения вкладок в режиме урока
@@ -39,6 +41,10 @@ export const ArchitecturePanel = () => {
   const edgesToRender = isLessonMode
     ? (diagramTab === 'lesson' ? activeStepState.lessonEdges : activeStepState.clarificationEdges)
     : edges; // Если не урок, показываем обычные связи
+
+  const currentOnNodesChange = isLessonMode
+    ? (diagramTab === 'lesson' ? onLessonNodesChange : onClarificationNodesChange)
+    : onNodesChange;
 
   // 6. Функция для стилизации кнопок-вкладок
   const getTabClassName = (tabName: 'lesson' | 'clarification') => {
@@ -70,7 +76,7 @@ export const ArchitecturePanel = () => {
           nodes={nodesToRender}
           edges={edgesToRender}
           // 8. Делаем схему НЕредактируемой в режиме урока
-          onNodesChange={isLessonMode ? undefined : onNodesChange}
+          onNodesChange={currentOnNodesChange}
           onEdgesChange={isLessonMode ? undefined : onEdgesChange}
           onConnect={isLessonMode ? undefined : onConnect}
           nodeTypes={nodeTypes}

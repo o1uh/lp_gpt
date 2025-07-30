@@ -93,6 +93,8 @@ interface AppContextType {
   sendStepMessage: (text: string, step: PlanStep, stepProgressId: number) => void;
   activeStepProgressId: number | null;
   resetStepState: () => void;
+  onLessonNodesChange: OnNodesChange;
+  onClarificationNodesChange: OnNodesChange;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -166,6 +168,21 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setEdges((eds) => addEdgeHelper(params, eds));
     setIsDirty(true);
   }, []);
+
+  const onLessonNodesChange: OnNodesChange = useCallback(
+    (changes) => setActiveStepState(prev => ({
+      ...prev,
+      lessonNodes: applyNodeChanges(changes, prev.lessonNodes)
+    })),
+    []
+  );
+  const onClarificationNodesChange: OnNodesChange = useCallback(
+    (changes) => setActiveStepState(prev => ({
+      ...prev,
+      clarificationNodes: applyNodeChanges(changes, prev.clarificationNodes)
+    })),
+    []
+  );
 
   const resetStepState = () => {
     setActiveStep(null);
@@ -695,6 +712,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     sendStepMessage,
     activeStepProgressId,
     resetStepState,
+    onLessonNodesChange,
+    onClarificationNodesChange,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
