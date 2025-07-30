@@ -98,6 +98,7 @@ interface AppContextType {
   onLessonNodesChange: OnNodesChange;
   onClarificationNodesChange: OnNodesChange;
   activeStepStatus: StepStatus;
+  resetToAssistantDefaults: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -155,6 +156,38 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         setActiveProjectName,
         setSaveModalState
     });
+
+  const resetToAssistantDefaults = () => {
+    setActiveProjectId(null);
+    setActiveProjectName("Новый проект");
+    setNodes([{ id: 'start-node', type: 'input', data: { label: 'Начните проектирование...' }, position: { x: 250, y: 5 } }]);
+    setEdges([]);
+    setMessages([]);
+    setIsDirty(false);
+
+    // Сбрасываем все состояния учителя
+    setIsPlanning(false);
+    setGeneratedPlan(null);
+    setActiveCourseId(null);
+    setCurrentTopic('');
+    setCurrentKbId(null);
+    setActiveCourseMessages([]);
+    setActiveStep(null);
+    setActiveStepProgressId(null);
+    setActiveStepState({
+        messages: [],
+        lessonNodes: [],
+        lessonEdges: [],
+        clarificationNodes: [],
+        clarificationEdges: [],
+      });
+    setActiveStepStatus('locked');
+    
+    // Показываем стартовые подсказки ассистента
+    const initialSuggestions = sandboxTasks.map(task => task.name);
+    initialSuggestions.push("Начать с чистого листа");
+    setPromptSuggestions(initialSuggestions);
+  };
 
   const onNodesChange: OnNodesChange = useCallback((changes) => {
     if (changes.some(c => c.type === 'position' && c.dragging === false)) {
@@ -558,7 +591,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         console.error("Невозможно отправить сообщение: неполный контекст урока.");
         return;
     }
-
+    setPromptSuggestions([])
     const userMessage: Message = { id: Date.now(), text, sender: 'user' };
     
     // Создаем новое состояние немедленно для отзывчивости UI
@@ -722,6 +755,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     onLessonNodesChange,
     onClarificationNodesChange,
     activeStepStatus,
+    resetToAssistantDefaults,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

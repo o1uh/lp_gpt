@@ -130,21 +130,22 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel, activeTab }: ChatPane
         )}
         
         {/* НОВАЯ ЛОГИКА: Показываем заглушку, если нет сообщений */}
-        {currentMessages.length === 0 ? (
+        {/* Показываем заглушку, только если нет сообщений И мы в режиме ассистента */}
+        {currentMessages.length === 0 && activeTab === 'assistant' && (
           <div className="m-auto text-center text-gray-500">
             <p className="text-lg">С чего начнём?</p>
             <p className="text-sm">Выберите подсказку ниже или задайте свой вопрос</p>
           </div>
-        ) : (
-          // Иначе показываем сообщения
-          currentMessages.map(message => (
+        )}
+        
+        {/* Отображаем сообщения */}
+        {currentMessages.map(message => (
             <ChatMessage 
               key={message.id} 
               message={message} 
               isPanelVisible={isPanelVisible}
             />
-          ))
-        )}
+          ))}
         {isLoading && (
           <div className="flex justify-start">
             <div className="bg-gray-600 p-3 rounded-lg flex items-center gap-x-2">

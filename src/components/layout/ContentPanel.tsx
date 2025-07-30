@@ -22,7 +22,7 @@ interface ContentPanelProps {
 }
 
 export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
-  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId, createNewCourse, beginCoursePlanning, loadCourses, teacherCourses, loadCourse, generatedPlan, loadStep, resetStepStateAndCourse   } = useAppContext(); 
+  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId, createNewCourse, beginCoursePlanning, loadCourses, teacherCourses, loadCourse, generatedPlan, loadStep, resetStepStateAndCourse, resetToAssistantDefaults   } = useAppContext(); 
   
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
@@ -93,7 +93,13 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
   };
 
   const handleTabChange = (tab: 'assistant' | 'teacher' | 'examiner') => {
-    navigateWithDirtyCheck(() => onTabChange(tab), "Переключить режим");
+     navigateWithDirtyCheck(() => {
+      // Если мы переключаемся на ассистента, сбрасываем всё
+      if (tab === 'assistant') {
+        resetToAssistantDefaults();
+      }
+      onTabChange(tab);
+    }, "Переключить режим");
   };
 
   const handleLoadProject = (projectId: number) => {
