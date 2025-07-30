@@ -62,9 +62,11 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel, activeTab }: ChatPane
   
   const handleSuggestionClick = (suggestion: string) => {
     if (isLoading) return;
-    if (suggestion === "Начать с чистого листа") {
-      // Эта логика должна быть в AppContext/useChat, но для простоты пока здесь
-      setInputValue(''); 
+    
+    if (activeTab === 'teacher' && activeStep && activeStepProgressId) {
+      sendStepMessage(suggestion, activeStep, activeStepProgressId);
+    } else if (activeTab === 'teacher') {
+      sendTeacherMessage(suggestion);
     } else {
       sendMessage(suggestion);
     }

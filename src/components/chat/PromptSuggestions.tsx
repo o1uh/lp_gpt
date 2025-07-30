@@ -11,15 +11,22 @@ export const PromptSuggestions = ({ suggestions, onSuggestionClick }: PromptSugg
 
   return (
     <div className="mb-4 flex flex-wrap gap-2">
-      {suggestions.map((suggestion, index) => (
-        <button
-          key={index}
-          onClick={() => onSuggestionClick(suggestion)}
-          className="px-3 py-1.5 bg-gray-700/50 hover:bg-gray-700 text-sm text-gray-200 rounded-lg transition-colors"
-        >
-          {suggestion}
-        </button>
-      ))}
+      {suggestions.map((suggestion, index) => {
+        const isCompleteButton = suggestion.toLowerCase().includes('завершить');
+        return (
+          <button
+            key={index}
+            onClick={() => onSuggestionClick(suggestion)}
+            className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+              isCompleteButton 
+                ? 'bg-green-600 hover:bg-green-700 text-white font-semibold' 
+                : 'bg-gray-700/50 hover:bg-gray-700 text-gray-200'
+            }`}
+          >
+            {suggestion}
+          </button>
+        )
+      })}
     </div>
   );
 };

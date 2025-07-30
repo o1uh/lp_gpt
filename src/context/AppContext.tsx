@@ -47,6 +47,7 @@ interface ParsedAIResponse {
   clarificationNodes?: Node[];
   clarificationEdges?: Edge[];
   stepCompleted?: boolean;
+  suggestions?: string[];
 }
 
 interface AppContextType {
@@ -239,7 +240,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setMessages([]);
 
       const initialSuggestions = sandboxTasks.map(task => task.name);
-      initialSuggestions.push("Начать с чистого листа");
       setPromptSuggestions(initialSuggestions);
       setIsDirty(false); // Пустой проект незачем контролировать
     }
@@ -494,6 +494,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const loadCourse = useCallback(async (courseId: number, kbId: number, projectName: string) => {
+    setPromptSuggestions([]);
     try {
       resetStepState();
       setIsLoading(true);
@@ -552,9 +553,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             parts: [{ text: msg.text }],
         }))as HistoryItem[];;
         
-        const response = await tutorChat(currentKbId, step, historyForAPI);
+        const response = await tutorChat(currentKbId, step, historyForAPI, activeStepState);
         const fullResponseText = response.fullResponse;
-
+        console.log('ЧЕЛ ПРИСЛАЛ: ',fullResponseText)
         // Парсинг ответа AI (схемы, текст, флаг `stepCompleted`)
         const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
         const match = fullResponseText.match(jsonRegex);
@@ -564,6 +565,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (match && match[1]) {
             try {
                 parsedJson = JSON.parse(match[1]);
+                if (parsedJson.suggestions && Array.isArray(parsedJson.suggestions)) {
+            setPromptSuggestions(parsedJson.suggestions);
+          } else {
+            setPromptSuggestions([]); // Если не пришли, очищаем
+          }
             } catch (e) { console.error("Ошибка парсинга JSON от AI:", e); }
         }
         
