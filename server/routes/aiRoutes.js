@@ -93,7 +93,7 @@ router.post('/tutor-chat', async (req, res) => {
     try {
         const contextDocs = await queryKB(kbId, step.title, 5); // Узкий поиск по теме шага
         const context = contextDocs.map(doc => doc.pageContent).join('\n---\n');
-
+        console.log('КОНТЕКСТ:',context)
         const tutorPrompt = `
 ### РОЛЬ И ЦЕЛЬ ###
 Ты — "AI-Учитель", эксперт-наставник. Твоя задача — провести пользователя по конкретному теоретическому шагу учебного плана, объясняя материал просто, наглядно и пошагово. Ты должен быть терпеливым и поощрять вопросы.
