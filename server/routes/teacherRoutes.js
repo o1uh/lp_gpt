@@ -199,12 +199,41 @@ router.get('/progress/:courseProgressId/step/:stepId', (req, res) => {
 
 // PUT /api/teacher/steps/:stepProgressId/complete - Пометить шаг как пройденный
 router.put('/steps/:stepProgressId/complete', (req, res) => {
-    // TODO: Проверка владения
     const stepProgressId = req.params.stepProgressId;
-    const sql = `UPDATE step_progress SET status = 'completed' WHERE id = ?`;
-    db.run(sql, [stepProgressId], function(err) {
-        if (err) return res.status(500).json({ error: 'Ошибка сервера' });
-        res.status(200).json({ message: 'Шаг завершен' });
+    const userId = req.user.userId;
+    
+    // Получаем информацию о текущем шаге и курсе
+    const infoSql = `SELECT sp.step_id, cp.course_id, cp.id as course_progress_id FROM step_progress sp JOIN course_progress cp ON sp.course_progress_id = cp.id WHERE sp.id = ? AND cp.user_id = ?`;
+    
+    db.get(infoSql, [stepProgressId, userId], (err, info) => {
+        if (err || !info) return res.status(500).json({ error: 'Ошибка получения информации о шаге' });
+
+        // 1. Помечаем текущий шаг как пройденный
+        const completeSql = `UPDATE step_progress SET status = 'completed' WHERE id = ?`;
+        db.run(completeSql, [stepProgressId], async (err) => {
+            if (err) return res.status(500).json({ error: 'Ошибка завершения шага' });
+
+            // 2. Находим следующий шаг в плане курса
+            const planSql = 'SELECT plan_json FROM courses WHERE id = ?';
+            db.get(planSql, [info.course_id], (err, course) => {
+                if (err || !course.plan_json) return res.status(200).json({ message: 'Шаг завершен, но следующий не найден' });
+                
+                const plan = JSON.parse(course.plan_json);
+                const currentIndex = plan.findIndex(step => step.id === info.step_id);
+                
+                if (currentIndex !== -1 && currentIndex + 1 < plan.length) {
+                    const nextStep = plan[currentIndex + 1];
+                    // 3. Разблокируем следующий шаг
+                    const unlockSql = `UPDATE step_progress SET status = 'unlocked' WHERE course_progress_id = ? AND step_id = ?`;
+                    db.run(unlockSql, [info.course_progress_id, nextStep.id], () => {
+                        res.status(200).json({ message: `Шаг ${info.step_id} завершен, шаг ${nextStep.id} разблокирован.` });
+                    });
+                } else {
+                    // Это был последний шаг
+                    res.status(200).json({ message: 'Шаг завершен. Курс пройден!' });
+                }
+            });
+        });
     });
 });
 

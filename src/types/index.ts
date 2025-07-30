@@ -16,13 +16,8 @@ export interface TeacherCourse {
   courseProgressId: number | null;
 }
 
-export interface TeacherStep {
-  id: number;
-  name: string;
-  status: 'locked' | 'unlocked' | 'completed';
-}
-
 export interface PlanStep {
   id: string;
   title: string;
+  status?: 'locked' | 'unlocked' | 'completed';
 }

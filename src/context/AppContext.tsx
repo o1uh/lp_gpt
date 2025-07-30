@@ -50,6 +50,8 @@ interface ParsedAIResponse {
   suggestions?: string[];
 }
 
+type StepStatus = 'locked' | 'unlocked' | 'completed';
+
 interface AppContextType {
   nodes: Node[];
   edges: Edge[];
@@ -92,9 +94,10 @@ interface AppContextType {
   loadStep: (step: PlanStep, courseProgressId: number) => void;
   sendStepMessage: (text: string, step: PlanStep, stepProgressId: number) => void;
   activeStepProgressId: number | null;
-  resetStepState: () => void;
+  resetStepStateAndCourse: () => void;
   onLessonNodesChange: OnNodesChange;
   onClarificationNodesChange: OnNodesChange;
+  activeStepStatus: StepStatus;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -119,6 +122,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [activeCourseMessages, setActiveCourseMessages] = useState<Message[]>([]);
   const [activeStep, setActiveStep] = useState<PlanStep | null>(null);
   const [activeStepProgressId, setActiveStepProgressId] = useState<number | null>(null);
+  const [activeStepStatus, setActiveStepStatus] = useState<'locked' | 'unlocked' | 'completed'>('locked');
   
   const [activeStepState, setActiveStepState] = useState<StepState>({
     messages: [],
@@ -184,7 +188,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     []
   );
 
-  const resetStepState = () => {
+  const resetStepStateAndCourse = () => {
+    setActiveCourseId(null);
     setActiveStep(null);
     setActiveStepProgressId(null);
     setActiveStepState({
@@ -348,7 +353,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
   const createNewCourse = async (kbId: number, topic: string): Promise<TeacherCourse | null> => {
     try {
-      resetStepState();
+      resetStepStateAndCourse();
       const newCourseData = await createCourse(kbId, topic);
       await loadCourses(kbId); // Обновляем список курсов
       return newCourseData.course;
@@ -482,7 +487,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     try {
       // 5. Отправляем финальный план на новый эндпоинт
-      const { courseProgressId } = await approveCoursePlan(activeCourseId, generatedPlan);
+      await approveCoursePlan(activeCourseId, generatedPlan);
       
       setIsPlanning(false);
       // setGeneratedPlan(null);
@@ -495,11 +500,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           sender: 'ai' 
         }
       ]);
-      const firstStep = generatedPlan[0];
-      if (firstStep) {
-        setActiveStep(firstStep);
-        await loadStep(firstStep, courseProgressId);
-      }
+      // const firstStep = generatedPlan[0];
+      // if (firstStep) {
+      //   setActiveStep(firstStep);
+      //   await loadStep(firstStep, courseProgressId);
+      // }
       
       alert("Курс успешно утвержден!");
     } catch (error) {
@@ -513,7 +518,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const loadCourse = useCallback(async (courseId: number, kbId: number, projectName: string) => {
     setPromptSuggestions([]);
     try {
-      resetStepState();
+      resetStepStateAndCourse();
       setIsLoading(true);
       const { course, messages } = await fetchCourseData(courseId);
       
@@ -614,6 +619,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             if (activeCourseId) {
                 await loadCourse(activeCourseId, currentKbId, activeProjectName);
             }
+            setActiveStepStatus('completed'); 
         }
 
     } catch (error) {
@@ -634,7 +640,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       // 2. Загружаем данные о прогрессе этого шага из БД (включая его ID)
       const stepProgress = await fetchStepProgress(courseProgressId, step.id);
       setActiveStepProgressId(stepProgress.id); // Сохраняем ID для будущих сохранений
-
+      setActiveStepStatus(stepProgress.status);
       // 3. Анализируем загруженные данные
       const savedMessages = JSON.parse(stepProgress.messages_json || '[]');
 
@@ -646,15 +652,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         clarificationEdges: JSON.parse(stepProgress.clarification_edges_json || '[]'),
       });
       
-      // --- СЦЕНАРИЙ А: Урок начинается В ПЕРВЫЙ РАЗ ---
-      // Отправляем "скрытое" системное сообщение, чтобы запустить диалог
-      // `sendStepMessage` сам выключит `isLoading`, когда получит ответ.
-      if (savedMessages.length === 0) {
-        await sendStepMessage("Начни урок по этой теме.", step, stepProgress.id);
-      } else {
-      // --- СЦЕНАРИЙ Б: Урок уже начат ---
-        setIsLoading(false);
-      }
+      // // --- СЦЕНАРИЙ А: Урок начинается В ПЕРВЫЙ РАЗ ---
+      // // Отправляем "скрытое" системное сообщение, чтобы запустить диалог
+      // // `sendStepMessage` сам выключит `isLoading`, когда получит ответ.
+      // if (savedMessages.length === 0) {
+      //   await sendStepMessage("Начни урок по этой теме.", step, stepProgress.id);
+      // } else {
+      // // --- СЦЕНАРИЙ Б: Урок уже начат ---
+      //   setIsLoading(false);
+      // }
+      setIsLoading(false);
     } catch (error) {
       console.error("Ошибка загрузки шага:", error);
       setActiveStepState({
@@ -711,9 +718,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     loadStep,
     sendStepMessage,
     activeStepProgressId,
-    resetStepState,
+    resetStepStateAndCourse,
     onLessonNodesChange,
     onClarificationNodesChange,
+    activeStepStatus,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

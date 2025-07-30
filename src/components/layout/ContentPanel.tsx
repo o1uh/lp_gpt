@@ -22,7 +22,7 @@ interface ContentPanelProps {
 }
 
 export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
-  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId, createNewCourse, beginCoursePlanning, loadCourses, teacherCourses, loadCourse, generatedPlan, loadStep, isPlanning, resetStepState   } = useAppContext(); 
+  const { startNewProject, projects, loadProject, navigateWithDirtyCheck, activeProjectId, createNewCourse, beginCoursePlanning, loadCourses, teacherCourses, loadCourse, generatedPlan, loadStep, resetStepStateAndCourse   } = useAppContext(); 
   
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
@@ -125,18 +125,23 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
       }
   };
 
-  const handleStepClick = (step: PlanStep, course: TeacherCourse) => {
-    if (!course.courseProgressId) {
-        alert("Произошла ошибка: не найден прогресс для этого курса.");
-        return;
+  const handleStepClick = (step: PlanStep) => {
+    if (teacherView.level !== 'steps') return;
+
+    const currentCourse = teacherCourses.find(c => c.id === teacherView.courseId);
+
+    if (currentCourse && currentCourse.courseProgressId) {
+      // Мы вызываем loadStep, только если courseProgressId не равен null
+      loadStep(step, currentCourse.courseProgressId);
+    } else {
+      console.error("Невозможно загрузить шаг: отсутствует ID прогресса курса.", currentCourse);
+      alert("Произошла ошибка при загрузке урока.");
     }
-    // Передаем правильный ID прогресса
-    loadStep(step, course.courseProgressId);
   };
 
   const handleBackToCourses = () => {
     // 1. Сбрасываем состояние активного урока
-    resetStepState();
+    resetStepStateAndCourse();
     console.log(teacherView.level)
     // 2. Возвращаемся к списку курсов
     if (teacherView.level === 'steps') {
@@ -247,6 +252,7 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
           case 'steps': {
             if (teacherView.level !== 'steps') return null;
             const currentCourse = teacherCourses.find(c => c.id === teacherView.courseId);
+            const isCourseApproved = currentCourse?.status === 'approved';
             return (
               <div className="flex flex-col h-full">
                 {/* --- НОВЫЙ ИНТЕРФЕЙС --- */}
@@ -272,15 +278,15 @@ export const ContentPanel = ({ activeTab, onTabChange }: ContentPanelProps) => {
                   <ul className="space-y-2">
                     {/* Рендерим шаги из `generatedPlan` */}
                     {generatedPlan && generatedPlan.map((step: PlanStep & { status?: string }) => { // Добавляем статус
-                      const isLocked = !isPlanning && step.status === 'locked';
-                      const isCompleted = !isPlanning && step.status === 'completed';
+                      const isLocked = !isCourseApproved || step.status === 'locked';
+                      const isCompleted = isCourseApproved && step.status === 'completed';
 
                       return (
                         <li key={step.id}>
                           <button 
-                            onClick={() => !isLocked && currentCourse && handleStepClick(step, currentCourse)}
+                            onClick={() => !isLocked && currentCourse && handleStepClick(step)}
                             // Делаем кнопку неактивной, если она заблокирована
-                            disabled={isLocked || isPlanning}
+                            disabled={isLocked}
                             className={`w-full text-left flex items-center gap-x-2 p-2 rounded 
                               ${isLocked 
                                 ? 'text-gray-600 cursor-not-allowed' 

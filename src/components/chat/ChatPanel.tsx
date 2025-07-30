@@ -31,10 +31,14 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel, activeTab }: ChatPane
     activeStepState, 
     sendStepMessage,
     activeStepProgressId,
+    activeStepStatus,
     } = useAppContext();
   const [inputValue, setInputValue] = useState('');
   const chatEndRef = useRef<null | HTMLDivElement>(null);
 
+  const isLessonStarted = activeStep && activeStepState.messages.length > 0;
+  const isLessonCompleted = activeStepStatus === 'completed';
+  
   let currentMessages: Message[] = messages;
   if (activeTab === 'teacher') {
     currentMessages = activeStep ? activeStepState.messages : activeCourseMessages;
@@ -79,6 +83,12 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel, activeTab }: ChatPane
     }
   };
 
+  const handleStartLesson = () => {
+    if (activeStep && activeStepProgressId) {
+      sendStepMessage("Начни урок по этой теме.", activeStep, activeStepProgressId);
+    }
+  };
+
   return (
     <div className={`transition-all duration-300 p-4 border-r border-gray-700 flex flex-col ${
       isPanelVisible ? 'w-1/2' : 'w-3/5'
@@ -107,6 +117,18 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel, activeTab }: ChatPane
       </div>
 
       <div className="flex-grow bg-gray-800 rounded-lg p-4 space-y-4 overflow-y-auto flex flex-col">
+        {activeTab === 'teacher' && activeStep && !isLessonStarted && !isLessonCompleted && (
+          <div className="m-auto text-center">
+            <button 
+              onClick={handleStartLesson} 
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition-colors disabled:bg-gray-500"
+              disabled={isLoading}
+            >
+              Начать урок
+            </button>
+          </div>
+        )}
+        
         {/* НОВАЯ ЛОГИКА: Показываем заглушку, если нет сообщений */}
         {currentMessages.length === 0 ? (
           <div className="m-auto text-center text-gray-500">
@@ -156,12 +178,14 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel, activeTab }: ChatPane
         )}
         <div className="relative flex items-start">
           <TextareaAutosize
-             placeholder={
+            disabled={isLoading || isLessonCompleted}
+            placeholder={
               isLoading ? "AI думает..." 
-              : isPlanning ? "Обсудите или утвердите план..." 
+              : isLessonCompleted ? "Урок завершен."
+              : isInPlanningMode ? "Обсудите или утвердите план..." 
               : "Задайте ваш вопрос... (Ctrl+Enter для отправки)"
             }
-            disabled={isLoading}
+            
             className="w-full p-3 pr-12 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
@@ -172,7 +196,7 @@ export const ChatPanel = ({ isPanelVisible, onTogglePanel, activeTab }: ChatPane
           <button
             onClick={handleSendMessageClick}
             className="absolute right-2 bottom-2 p-2 rounded-lg text-gray-400 hover:bg-gray-600 hover:text-white transition-colors"
-            disabled={isLoading}
+            disabled={isLoading || isLessonCompleted}
             title="Отправить (Ctrl+Enter)"
           >
             <Send size={20} />
