@@ -8,35 +8,40 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute.tsx';
 import { PublicOnlyRoute } from './components/auth/PublicOnlyRoute.tsx'; // 1. Импортируем наш новый защитник
 import './index.css'
 
-const router = createBrowserRouter([
+const router = createBrowserRouter(
+  [
+    {
+      path: "/",
+      element: <App />,
+      children: [
+        {
+          index: true,
+          element: <Navigate to="/login" replace />,
+        },
+        {
+          path: "login",
+          element: (
+            <PublicOnlyRoute>
+              <LoginPage />
+            </PublicOnlyRoute>
+          ),
+        },
+        {
+          path: "app",
+          element: (
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          ),
+        },
+      ]
+    },
+  ],
   {
-    path: "/",
-    element: <App />,
-    children: [
-      {
-        index: true,
-        element: <Navigate to="/login" replace />,
-      },
-      {
-        path: "login",
-        // 2. Оборачиваем LoginPage в PublicOnlyRoute
-        element: (
-          <PublicOnlyRoute>
-            <LoginPage />
-          </PublicOnlyRoute>
-        ),
-      },
-      {
-        path: "app",
-        element: (
-          <ProtectedRoute>
-            <AppLayout />
-          </ProtectedRoute>
-        ),
-      },
-    ]
-  },
-]);
+    
+    basename: import.meta.env.BASE_URL,
+  }
+);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
