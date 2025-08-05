@@ -16,8 +16,27 @@ const aiRoutes = require('./routes/aiRoutes.js');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Список доменов, которым мы доверяем
+const allowedOrigins = [
+  'https://o1uh.github.io', // Сайт на GitHub Pages
+  'http://localhost:5173'   // Сайт для локальной разработки
+];
+
+// Настраиваем CORS
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Если запрос пришел с одного из разрешенных доменов (или это не браузерный запрос, origin=undefined)
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
+};
+
 // Подключаем middleware
-app.use(cors());
+app.use(cors(corsOptions));
+
 app.use(express.json());
 
 // --- РОУТЫ (Маршруты API) ---
