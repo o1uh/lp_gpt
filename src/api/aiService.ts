@@ -13,7 +13,7 @@ const getAuthHeaders = () => {
     };
 };
 
-const API_URL = 'http://localhost:3001/api/ai';
+const API_URL = `${import.meta.env.VITE_API_URL}/api/ai`;
 
 export const getPlanUpdate = async (kbId: number, topic: string, history: HistoryItem[]): Promise<{ fullResponse: string }> => {
     const response = await fetch(`${API_URL}/plan-chat`, {

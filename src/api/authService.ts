@@ -1,5 +1,4 @@
-// Адрес нашего бэкенда. В будущем его можно вынести в .env
-const API_URL = 'http://localhost:3001/api/auth';
+const API_URL = `${import.meta.env.VITE_API_URL}/api/auth`;
 
 // Функция для входа в систему
 export const loginUser = async (login: string, password: string) => {

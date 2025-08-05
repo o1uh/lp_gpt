@@ -1,7 +1,7 @@
 import { type Node, type Edge } from 'reactflow';
 import { type Message } from '../types';
 
-const API_URL = 'http://localhost:3001/api/projects';
+const API_URL = `${import.meta.env.VITE_API_URL}/api/projects`;
 
 // Определяем интерфейс для данных, которые мы сохраняем
 interface ProjectStateData {

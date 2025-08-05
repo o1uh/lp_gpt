@@ -31,7 +31,9 @@ jobs:
 
       # САМЫЙ ВАЖНЫЙ ШАГ: Создаем .env файл ПЕРЕД сборкой
       - name: Create .env file
-        run: echo "VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}" > .env
+        run: |
+          echo "VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}" > .env
+          echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" >> .env
 
       - name: Build project
         run: npm run build # Vite автоматически подхватит .env файл

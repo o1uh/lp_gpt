@@ -12,7 +12,7 @@ const getAuthHeaders = () => {
     };
 };
 
-const API_URL = 'http://localhost:3001/api/teacher';
+const API_URL = `${import.meta.env.VITE_API_URL}/api/teacher`;
 
 interface CourseDataPayload {
   course: {
