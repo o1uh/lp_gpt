@@ -1,0 +1,49 @@
+# .github/workflows/deploy.yml
+name: Deploy Frontend to GitHub Pages
+
+on:
+  # Запускать при пуше в ветку public
+  push:
+    branches: [ "public" ]
+  # Позволяет запускать этот воркфлоу вручную со страницы Actions
+  workflow_dispatch:
+
+# Устанавливаем права для GITHUB_TOKEN для деплоя на GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.17.0' # Укажите вашу версию Node.js
+
+      - name: Install dependencies
+        run: npm install
+
+      # САМЫЙ ВАЖНЫЙ ШАГ: Создаем .env файл ПЕРЕД сборкой
+      - name: Create .env file
+        run: echo "VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}" > .env
+
+      - name: Build project
+        run: npm run build # Vite автоматически подхватит .env файл
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist' # Папка с результатом сборки
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
